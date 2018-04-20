@@ -1,7 +1,7 @@
 #include "headers.h"
 
 int main() {
-	printf("SISTEMAS OPERATIVOS");
+	printf("COORDINATOR");
 
 	return 1;
 }

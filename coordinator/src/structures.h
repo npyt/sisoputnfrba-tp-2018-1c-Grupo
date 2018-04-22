@@ -17,6 +17,8 @@ typedef struct {
 	int idle_counter;
 } ESI;
 
+
+
 #define RESOURCE_KEY_MAX_SIZE 40
 
 typedef struct {
@@ -26,10 +28,30 @@ typedef struct {
 	int owner_instance;
 } Resource;
 
+
+
+typedef enum {
+	CIRC,
+	LRU,
+	BSY
+} ReplacementAlgorithm;
+
 typedef struct {
-	int id;
-	void * memory_fst_ptr;
+	int entry_number;
+	char key[RESOURCE_KEY_MAX_SIZE];
+	int size;
+} EntryTableEntry;
+
+typedef struct {
+	char name[255];
+	ReplacementAlgorithm algorithm;
+	char mounting_point[255];
+	int dump;
+	int socket;
+	EntryTableEntry * entry_table_fst;
 } Instance;
+
+
 
 typedef enum {
 	BLOCKED,

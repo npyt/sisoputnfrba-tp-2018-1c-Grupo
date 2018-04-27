@@ -10,7 +10,7 @@ int main(void) {
 	char *linea, *param1, *param2;
 	int command_number, quit = 0;
 	const char* command_list[] = {"salir", "pausa", "reanudar",
-			"bloquear", "bloquear", "listar", "kill",
+			"bloquear", "desbloquear", "listar", "kill",
 			"status", "deadlock", "info"};
 	int command_list_length = (int) sizeof(command_list) /
 			sizeof(command_list[0]);

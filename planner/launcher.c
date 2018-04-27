@@ -5,10 +5,10 @@ ESI * incoming_esi;
 PlannerAlgorithm * planner_algorithm;
 
 int main(){
-	/*
+
 	config = config_create("planner_config.cfg");
 	planner_algorithm = config_get_string_value(config, "PLAN_ALG"); // XX no lo va a leer
-
+/*
 	int server_socket = server_start(atoi(config_get_string_value(config, "PORT")));
 	if (server_socket == -1) {
 		log_error(logger, "ERROR AL INICIAR EL SERVIDOR");
@@ -75,6 +75,7 @@ void change_ESI_status(ESI*esi, ESIStatus * status){
     esi->status = status;
 }
 
+/*
 void * listening_thread(int server_socket) {
 	while(1) {
 		struct sockaddr_in client;
@@ -93,7 +94,7 @@ void * listening_thread(int server_socket) {
 	}
 }
 
-
+*/
 ESI recibe(){
 	//recibimos los esi enviados
 }

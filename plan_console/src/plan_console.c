@@ -47,36 +47,40 @@ void execute(int command_number, char* param1, char* param2){
 		printf("Comando no reconocido\n");
 		break;
 	case PAUSE:
-		pause();
+		if(!param1 && !param2) pause();
+		else {printf("El comando 'pausa' no recibe parametros!\n");}
 		break;
 	case RESUME:
-		resume();
+		if(!param1 && !param2) resume();
+		else {printf("El comando 'resumir' no recibe parametros!\n");}
 		break;
 	case BLOCK:
 		if(param1 && param2) block(param1, param2);
-		else {printf("El comando 'block' recibe dos parametros\n");}
+		else {printf("El comando 'bloquear' recibe dos parametros!\n");}
 		break;
 	case UNBLOCK:
-		if(param1) unblock(param1);
-		else {printf("El comando 'unblock' recibe un parametro\n");}
+		if(param1 && !param2) unblock(param1);
+		else {printf("El comando 'desbloquear' recibe un parametro!\n");}
 		break;
 	case LIST:
-		if(param1) list(param1);
-		else {printf("El comando 'list' recibe un parametro\n");}
+		if(param1 && !param2) list(param1);
+		else {printf("El comando 'listar' recibe un parametro!\n");}
 		break;
 	case KILL:
-		if(param1) kill(param1);
-		else {printf("El comando 'kill' recibe un parametro\n");}
+		if(param1 && !param2)kill(param1);
+		else {printf("El comando 'kill' recibe un parametro!\n");}
 		break;
 	case STATUS:
-		if(param1) status(param1);
-		else {printf("El comando 'status' recibe un parametro\n");}
+		if(param1 && !param2) status(param1);
+		else {printf("El comando 'status' recibe un parametro!\n");}
 		break;
 	case DEADLOCK:
-		deadlock();
+		if(!param1 && !param2) resume();
+		else {printf("El comando 'deadlock' no recibe parametros!\n");}
 		break;
 	case INFO:
-		info();
+		if(!param1 && !param2) info();
+		else {printf("El comando 'info' no recibe parametros!\n");}
 		break;
 	}
 }

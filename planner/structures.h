@@ -1,5 +1,5 @@
-#ifndef STRUCTURES_H_
-#define STRUCTURES_H_
+#ifndef STRUCTURES
+#define STRUCTURES
 
 typedef enum {
 	STATUS_BLOCKED,

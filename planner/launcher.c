@@ -1,14 +1,17 @@
 #include "headers.h"
 
+
+t_log * logger;
 t_config * config;
-ESI * incoming_esi;
-PlannerAlgorithm * planner_algorithm;
+// ESI * incoming_esi;
+// PlannerAlgorithm * planner_algorithm;
 
 int main(){
 
+	logger = log_create("planner_logger.log", "PLANNER", true, LOG_LEVEL_TRACE);
 	config = config_create("planner_config.cfg");
-	planner_algorithm = config_get_string_value(config, "PLAN_ALG"); // XX no lo va a leer
-/*
+	//planner_algorithm = config_get_string_value(config, "PLAN_ALG");
+
 	int server_socket = server_start(atoi(config_get_string_value(config, "PORT")));
 	if (server_socket == -1) {
 		log_error(logger, "ERROR AL INICIAR EL SERVIDOR");
@@ -29,53 +32,53 @@ int main(){
 	pthread_exit(NULL);
 	close(server_socket);
 
-	t_queue * ready_queue = queue_create();
+//	t_queue * ready_queue = queue_create();
 
-*/
-	ESI esi_location;
-	while(1){
-	incoming_esi = recibe();
-	 // Verificar con el ESI lo recibido
-	 //
-	 queue_add(ready,esi_arrive);
-	 switch(planner_algorithm){
-	 case FIFO:
-		 fifo(incoming_esi,incoming_esi->status);
-		 break;
-	 /*case SJF_SD:
-		 sjfsd(incoming_esi,incoming_esi->status);
-		 break;
-	 case SJF_CD:
-		 sjfcd(incoming_esi,incoming_esi->status);
-		 break;
-	 case HRRN:
-		 hrrn(incoming_esi,incoming_esi->status);
-		 break;*/
 
-	 }
-	 esi_location = queue_pop(ready_queue);
-	 //consulta a cordinador
-	 change_ESI_status(esi,STATUS_RUNNING);
-	 //run
-	 //verifico
-	 //saco si hace falta
-	}
+//	ESI esi_location;
+//	while(1){
+//	incoming_esi = recibe();
+//	 // Verificar con el ESI lo recibido
+//	 //
+//	 queue_add(ready,esi_arrive);
+//	 switch(planner_algorithm){
+//	 case FIFO:
+//		 fifo(incoming_esi,incoming_esi->status);
+//		 break;
+//	 case SJF_SD:
+//		 sjfsd(incoming_esi,incoming_esi->status);
+//		 break;
+//	 case SJF_CD:
+//		 sjfcd(incoming_esi,incoming_esi->status);
+//		 break;
+//	 case HRRN:
+//		 hrrn(incoming_esi,incoming_esi->status);
+//		 break;
+//
+//	 }
+//	 esi_location = queue_pop(ready_queue);
+//	 //consulta a cordinador
+//	 change_ESI_status(esi,STATUS_RUNNING);
+//	 //run
+//	 //verifico
+//	 //saco si hace falta
+//	}
 
 
 	return 0;
 }
 
-void fifo(ESI * esi, ESIStatus * status){
-    // Modificación del ESI: en otra func VVVV
-    change_ESI_status(esi, STATUS_READY);
-    int queue_add(ready, EL_ESI);
-}
+//void fifo(ESI * esi, ESIStatus * status){
+//    // Modificación del ESI: en otra func VVVV
+//    change_ESI_status(esi, STATUS_READY);
+//    int queue_add(ready, EL_ESI);
+//}
+//
+//void change_ESI_status(ESI*esi, ESIStatus * status){
+//    esi->status = status;
+//}
 
-void change_ESI_status(ESI*esi, ESIStatus * status){
-    esi->status = status;
-}
 
-/*
 void * listening_thread(int server_socket) {
 	while(1) {
 		struct sockaddr_in client;
@@ -94,8 +97,8 @@ void * listening_thread(int server_socket) {
 	}
 }
 
-*/
-ESI recibe(){
-	//recibimos los esi enviados
-}
+//
+//ESI recibe(){
+//	//recibimos los esi enviados
+//}
 

@@ -3,6 +3,7 @@
 
 #include "structures.h"
 #include "sockets.h"
+#include "plan_console.h"
 
 #include <stdio.h>
 #include <stdlib.h>

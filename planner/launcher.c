@@ -27,7 +27,10 @@ int main(){
 	}
 
 	pthread_t listening_thread_id;
+	pthread_t planner_console_id;
 	pthread_create(&listening_thread_id, NULL, listening_thread, server_socket);
+	pthread_create(&planner_console_id, NULL, planner_console_launcher, NULL);
+
 
 	pthread_exit(NULL);
 	close(server_socket);

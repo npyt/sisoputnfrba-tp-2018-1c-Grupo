@@ -21,24 +21,29 @@ void * planner_console_launcher() {
 	while(quit == 0){
 		linea = readline("> ");
 		add_history(linea);
-		parse(&linea, &param1, &param2);
-		command_number = find_in_array(linea,
-				command_list, command_list_length);
+		string_tolower(linea);
+		if(parse(&linea, &param1, &param2)) printf("Demasiados parámetros!\n");
+		else {
+			command_number = find_in_array(linea,
+					command_list, command_list_length);
 
-		command_number == EXIT ? quit = 1 : execute(command_number,
-				param1, param2);
+			command_number == EXIT ? quit = 1 : execute(command_number,
+					param1, param2);
 
-		free (linea);
+		}
+
+		free(linea);
 	}
 	return EXIT_SUCCESS;
 }
 
-void parse(char **linea, char **param1, char **param2){
+int parse(char **linea, char **param1, char **param2){
 	//separo el input en palabras
 	strtok(*linea, " ");
 	*param1 = strtok(NULL, " ");
 	*param2 = strtok(NULL, " ");
-
+	if(strtok(NULL, " ")) return -1; //en este caso hay mas de 2 parametros
+	return 0;
 }
 
 void execute(int command_number, char* param1, char* param2){
@@ -67,7 +72,7 @@ void execute(int command_number, char* param1, char* param2){
 		else {printf("El comando 'listar' recibe un parametro!\n");}
 		break;
 	case KILL:
-		if(param1 && !param2)kill(param1);
+		if(param1 && !param2) kill(param1);
 		else {printf("El comando 'kill' recibe un parametro!\n");}
 		break;
 	case STATUS:
@@ -90,4 +95,9 @@ int find_in_array(char* linea, const char** command_list, int length){
 	for(int i = 0; i < length; i++)
 		if(strcmp(linea, command_list[i]) == 0) return i;
 	return -1;
+}
+
+void string_tolower(char* string){
+	for(int i = 0; string[i]; i++)
+		string[i] = tolower(string[i]);
 }

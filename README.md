@@ -5,7 +5,7 @@
 * [theMec](https://github.com/theMec) - Martín Calviello
 * [Magli44](https://github.com/Magli44) - Matías Iglesias
 * [npyt](https://github.com/npyt) - Ramiro Maranzana
-* [lucasrango](https://github.com/lucasrango) - Lucas Rango
+* [rangolucas](https://github.com/rangolucas) - Lucas Rango
 
 ## Links
 

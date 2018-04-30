@@ -28,8 +28,8 @@ void sjfsd(ESI *);
 void hrrn(ESI *);
 void change_ESI_status(ESI *, ESIStatus * );
 void create_queues();
-void define_algorithm(t_config *, PlannerAlgorithm *);
-void sort_esi(ESI * , PlannerAlgorithm * );
+void define_algorithm(t_config *, PlannerAlgorithm);
+void sort_esi(ESI * , PlannerAlgorithm);
 
 
 

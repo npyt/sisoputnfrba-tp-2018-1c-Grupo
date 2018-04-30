@@ -8,7 +8,7 @@ t_queue * blocked_queue;
 t_queue * finished_queue;
 t_queue * running_queue;
 
-PlannerAlgorithm * planner_algorithm;
+PlannerAlgorithm planner_algorithm;
 
 
 int main(){
@@ -68,24 +68,6 @@ int main(){
 	 *
 	 */
 
-//	ESI esi_location;
-//	while(1){
-//	incoming_esi = recibe();
-//	 // Verificar con el ESI lo recibido
-//	 //
-//	 queue_add(ready,esi_arrive);
-//
-//	 esi_location = queue_pop(ready_queue);
-//	 //consulta a cordinador
-//	 change_ESI_status(esi,STATUS_RUNNING);
-//	 //run
-//	 //verifico
-//	 //saco si hace falta
-//	}
-
-
-
-
 	pthread_exit(NULL);
 	close(server_socket);
 
@@ -116,7 +98,7 @@ void create_queues(){
 	running_queue = queue_create();
 }
 
-void sort_esi(ESI * esi, PlannerAlgorithm * algorithm){
+void sort_esi(ESI * esi, PlannerAlgorithm algorithm){
 	 switch(algorithm){
 	 case FIFO:
 		 fifo(incoming_esi);
@@ -134,7 +116,7 @@ void sort_esi(ESI * esi, PlannerAlgorithm * algorithm){
 }
 
 
-void define_algorithm(t_config * config, PlannerAlgorithm * planner_algorithm){
+void define_algorithm(t_config * config, PlannerAlgorithm planner_algorithm){
 	char * buffer_algorithm;
 
 	strcpy(buffer_algorithm, config_get_string_value(config, "PLAN_ALG"));

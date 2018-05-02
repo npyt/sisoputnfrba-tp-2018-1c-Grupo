@@ -18,7 +18,7 @@
 
 - [X] Creación de todos los procesos que intervienen
 - [ ] Desarrollar una comunicación simple entre los procesos que permita propagar un mensaje por cada conexión necesaria
-- [ ] Implementar la consola del Planificador sin funcionalidades
+- [X] Implementar la consola del Planificador sin funcionalidades
 
 ### [Checkpoint 2 - No presencial](https://sisoputnfrba.gitbook.io/re-distinto/descripcion-de-las-entregas#checkpoint-2-no-presencial)
 

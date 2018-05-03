@@ -16,7 +16,7 @@ int main(){
 	planner_algorithm = FIFO;
 	logger = log_create("planner_logger.log", "PLANNER", true, LOG_LEVEL_TRACE);
 	config = config_create("planner_config.cfg");
-	define_algorithm(config, planner_algorithm);
+//	define_algorithm(config, planner_algorithm);
 
 /*
  * SOCKET
@@ -49,7 +49,7 @@ int main(){
  * QUEUES
  */
 
-	create_queues();
+//	create_queues();
 
 	/*
 	 * Recibir mensaje del ESI
@@ -115,7 +115,6 @@ void sort_esi(ESI * esi, PlannerAlgorithm algorithm){
 	 }
 }
 
-
 void define_algorithm(t_config * config, PlannerAlgorithm planner_algorithm){
 	char * buffer_algorithm;
 
@@ -134,9 +133,6 @@ void define_algorithm(t_config * config, PlannerAlgorithm planner_algorithm){
 	}
 }
 
-
-
-
 void fifo(ESI * esi){
     queue_push(ready_queue, esi);
 }
@@ -151,10 +147,9 @@ void hrrn(ESI * esi){
 
 }
 
-void change_ESI_status(ESI * esi, ESIStatus * esi_status){
+void change_ESI_status(ESI * esi, ESIStatus esi_status){
     esi->status = esi_status;
 }
-
 
 
 //

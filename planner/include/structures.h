@@ -17,7 +17,6 @@ typedef struct {
 	int idle_counter;
 } ESI;
 
-
 typedef enum {
 	FIFO,
 	SJF_SD,

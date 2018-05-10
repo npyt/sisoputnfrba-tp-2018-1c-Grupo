@@ -3,6 +3,12 @@
 t_log * logger;
 t_config * config;
 
+typedef struct{
+	char buffer[100];
+} PlannerBuffer;
+
+
+
 int main() {
 	printf("COORDINATOR");
 
@@ -23,6 +29,59 @@ int main() {
 		log_error(logger, "ERROR AL ESCUCHAR EN PUERTO");
 	} else {
 		log_info(logger, "SERVIDOR ESCUCHANDO %d", atoi(config_get_string_value(config, "PORT")));
+	}
+
+	struct sockaddr_in client_addr;
+	int c = sizeof(struct sockaddr_in);
+	int client_connection = accept(server_socket, (struct sockaddr *)&client_addr, (socklen_t *)&c);
+
+	if(client_connection < 0){
+			log_error(logger, "ERROR AL ACEPTAR CONEXION");
+			return 1;
+		}
+
+	log_info(logger, "RECIBI UNA CONEXION Y SU FD DE SOCKET ES: %d\n", client_connection);
+
+
+	MessageHeader * header = malloc(sizeof(MessageHeader));
+
+	if(recv(client_connection, header, sizeof(MessageHeader), 0) == -1){
+			log_error(logger, "ERROR AL RECIBIR LOS DATOS");
+			return 1;
+		}
+
+
+	switch((*header).type){
+
+	case PLANNER_DATA: ;
+
+		PlannerBuffer * planner = malloc(sizeof(PlannerBuffer));
+
+		if(recv(client_connection, planner, sizeof(PlannerBuffer), 0) == -1){
+				log_error(logger, "ERROR AL RECIBIR DATOS DEL PLANNER");
+				return 1;
+		}
+
+		log_info(logger, "Recibi: %s", (*planner).buffer);
+
+		int num = 1;
+		send_content_with_header(client_connection, DATA_RECIEVED, &num, sizeof(num));
+
+		break;
+
+		case UNKNOWN_MSG_TYPE:
+
+			log_error(logger, "No se reconocio el dato enviado");
+
+
+		break;
+
+		default:
+			log_info(logger, "No reconozco el tipo de mensaje enviado");
+
+			num = 1;
+			send_content_with_header(client_connection, UNKNOWN_MSG_TYPE, &num, sizeof(num));
+
 	}
 
 	pthread_t listening_thread_id;

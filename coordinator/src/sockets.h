@@ -6,13 +6,21 @@
 	#include <errno.h>
 
 	typedef enum {
+		PLANNER_DATA,
+		DATA_RECIEVED,
+		UNKNOWN_MSG_TYPE
+	} MessageTypeConnection;
+
+	typedef enum {
 		INCOMING_INSTANCE
-	} MessageType;
+	}MessageType;
 
 	typedef struct {
 		MessageType type;
 		int size;
 	} MessageHeader;
+
+
 
 	int server_start(int port);
 	int connect_with_server(char * addr, int port);

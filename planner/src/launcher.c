@@ -12,10 +12,10 @@ PlannerAlgorithm planner_algorithm;
 
 typedef struct{
 	char buffer[100];
-}Planner;
+}PlannerConnection;
 
 typedef enum {
-		PLANNER_DATA,
+		DATA,
 		DATA_RECIEVED,
 		UNKNOWN_MSG_TYPE
 	} MessageTypeConnection;
@@ -55,10 +55,10 @@ int main(){
 				}
 
 	//Armo una estructura para enviar al coordinador
-	Planner data;
+	PlannerConnection data;
 	strcpy(data.buffer, "Hola");
 
-	send_content_with_header(coordinator_socket, PLANNER_DATA, &data, sizeof(Planner));
+	send_content_with_header(coordinator_socket, DATA, &data, sizeof(PlannerConnection));
 
 	log_info(logger, "Envío saludo al coordinador");
 

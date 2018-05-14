@@ -18,8 +18,11 @@ int main() {
 		log_info(logger, " CONECTADO EN: %d", coordinator_socket);
 	}
 
-	//TODO
 	log_info(logger, "Envío saludo al coordinador");
+	{
+		int num = 1;
+		send_content_with_header(coordinator_socket, INSTANCE_COORD_HANDSHAKE, &num, 0);
+	}
 
 	//Armo estructura para recibir la respuesta y la espero...
 	MessageHeader * header = malloc(sizeof(MessageHeader));
@@ -30,23 +33,20 @@ int main() {
 	}
 
 	switch((*header).type) {
-		case DATA_RECIEVED:
-			log_info(logger,"El COORDINADOR me confirma que recibío los datos con éxito");
-			fflush(stdout);
+		case INSTANCE_COORD_HANDSHAKE_OK:
+			log_info(logger,"El COORDINADOR me confirma que puedo iniciar la instancia, espero los datos de configuración");
 
 			break;
 		case UNKNOWN_MSG_TYPE:
 			log_error(logger, "El COORDINADOR no reconoció el último mensaje enviado");
-			fflush(stdout);
 
 			break;
 		default:
 			log_error(logger, "No reconozco el tipo de mensaje");
-			fflush(stdout);
-
-			int num = 1;
-			send_content_with_header(coordinator_socket, UNKNOWN_MSG_TYPE, &num, sizeof(num));
-
+			{
+				int num = 1;
+				send_content_with_header(coordinator_socket, UNKNOWN_MSG_TYPE, &num, 0);
+			}
 			break;
 	}
 	return 0;

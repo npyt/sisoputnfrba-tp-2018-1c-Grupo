@@ -38,15 +38,6 @@ int main() {
 	strcpy((*instance_1).name, "Mi Instancia 1");
 	create_instance(instances, instance_1);
 
-	Instance * instance_2 = malloc(sizeof(Instance));
-	(*instance_2).algorithm = CIRC;
-	(*instance_2).dump = 10;
-	(*instance_2).socket = 27;
-	(*instance_2).entry_table_fst = NULL;
-	strcpy((*instance_2).mounting_point, "/");
-	strcpy((*instance_2).name, "Mi Instancia 2");
-	create_instance(instances, instance_2);
-
 	pthread_exit(NULL);
 	list_destroy(instances);
 	close(server_socket);
@@ -67,17 +58,37 @@ void * listening_thread(int server_socket) {
 
 		//Procesar el resto del mensaje dependiendo del tipo recibido
 		switch((*header).type) {
+			case PLANNER_COORD_HANDSHAKE:
+				log_info(logger, "El PLANNER quiere conectarse");
+				{
+					int num = 1;
+					send_content_with_header(client_socket, PLANNER_COORD_HANDSHAKE_OK, &num, 0);
+				}
 
-		case UNKNOWN_MSG_TYPE:
-			log_error(logger, "No se reconocio el dato enviado");
-			break;
+				break;
 
-		default:
-			log_info(logger, "No reconozco el tipo de mensaje enviado");
-			{
-				int num = 1;
-				send_content_with_header(client_socket, UNKNOWN_MSG_TYPE, &num, sizeof(num));
-			}
+			case INSTANCE_COORD_HANDSHAKE:
+				log_info(logger, "Una INSTANCIA quiere conectarse");
+				{
+					int num = 1;
+					send_content_with_header(client_socket, INSTANCE_COORD_HANDSHAKE_OK, &num, 0);
+				}
+				//TODO: Se crea la instancia y se inicia el thread que correponde. Además, informar por socket
+				//los datos correpondientes (cantidad de entradas, tamaño de cada entrada, etc.)
+
+				break;
+
+			case UNKNOWN_MSG_TYPE:
+				log_error(logger, "No se reconocio el dato enviado");
+				break;
+
+			default:
+				log_info(logger, "No reconozco el tipo de mensaje enviado");
+				{
+					int num = 1;
+					send_content_with_header(client_socket, UNKNOWN_MSG_TYPE, &num, 0);
+				}
+				break;
 		}
 	}
 }

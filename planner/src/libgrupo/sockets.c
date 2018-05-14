@@ -1,4 +1,5 @@
 #include "sockets.h"
+#include "stdio.h"
 
 int server_start(int port) {
 	int server_socket;
@@ -34,6 +35,7 @@ int connect_with_server(char * addr, int port) {
 	memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
 
 	addr_size = sizeof serverAddr;
+
 	if (connect(client_socket, (struct sockaddr *) &serverAddr, addr_size) == -1) {
 		return -1;
 	}
@@ -47,6 +49,8 @@ int send_content_with_header(int destination_socket, MessageType type, void *con
 
 	send(destination_socket, header, sizeof(MessageHeader), 0);
 
-	send(destination_socket, content, size, 0);
+	if(size > 0) {
+		send(destination_socket, content, size, 0);
+	}
 	return 0;
 }

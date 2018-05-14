@@ -36,49 +36,34 @@ int main(){
 		log_info(logger, "SERVIDOR ESCUCHANDO %d", atoi(config_get_string_value(config, "PORT")));
 	}
 
-	int coordinator_socket = connect_with_server( "127.0.0.1", 8000);
+	int coordinator_socket = connect_with_server(config_get_string_value(config, "IP_COORD"),
+			atoi(config_get_string_value(config, "PORT_COORD")));
 
-	if(coordinator_socket < 0){
+	if (coordinator_socket < 0){
 		log_error(logger, " ERROR AL CONECTAR CON EL COORDINADOR");
 		return 1;
 	} else {
 		log_info(logger, " CONECTADO EN: %d", coordinator_socket);
 	}
 
-	//Armo una estructura para enviar al coordinador
-	PlannerConnection data;
-	strcpy(data.buffer, "Hola");
-
-	send_content_with_header(coordinator_socket, DATA, &data, sizeof(PlannerConnection));
-
 	log_info(logger, "Envío saludo al coordinador");
+	{
+		int aux = 0;
+		send_content_with_header(coordinator_socket, PLANNER_COORD_HANDSHAKE, &aux, 0);
+	}
 
 	//Armo estructura para recibir la respuesta y la espero...
 
 	MessageHeader * header = malloc(sizeof(MessageHeader));
-
-	if(recv(coordinator_socket, header, sizeof(MessageHeader), 0) == -1) {
+	if (recv(coordinator_socket, header, sizeof(MessageHeader), 0) == -1) {
 		log_error(logger, "Error al recibir el MessageHeader\n");
 		return 1;
 	}
 
 	switch((*header).type) {
-		case DATA_RECIEVED:
-			log_info(logger,"El COORDINADOR me confirma que recibío los datos con éxito");
+		case PLANNER_COORD_HANDSHAKE_OK:
+			log_info(logger, "El COORDINADOR aceptó mi conexión");
 			fflush(stdout);
-
-			break;
-		case UNKNOWN_MSG_TYPE:
-			log_error(logger, "El COORDINADOR no reconoció el último mensaje enviado");
-			fflush(stdout);
-
-			break;
-		default:
-			log_error(logger, "No reconozco el tipo de mensaje");
-			fflush(stdout);
-
-			int num = 1;
-			send_content_with_header(coordinator_socket, UNKNOWN_MSG_TYPE, &num, sizeof(num));
 
 			break;
 	}
@@ -89,7 +74,7 @@ int main(){
 
 	pthread_t listening_thread_id;
 	pthread_t planner_console_id;
-	pthread_create(&listening_thread_id, NULL, listening_thread, server_socket);
+	//pthread_create(&listening_thread_id, NULL, listening_thread, server_socket);
 	pthread_create(&planner_console_id, NULL, planner_console_launcher, NULL);
 
 /*
@@ -134,6 +119,19 @@ void * listening_thread(int server_socket) {
 
 		//Procesar el resto del mensaje dependiendo del tipo recibido
 		switch((*header).type) {
+			case UNKNOWN_MSG_TYPE:
+				log_error(logger, "El receptor no reconoció el último mensaje enviado");
+
+				break;
+			default:
+				log_error(logger, "No reconozco el tipo de mensaje");
+
+				{
+					int num = 1;
+					send_content_with_header(client_socket, UNKNOWN_MSG_TYPE, &num, 0);
+				}
+
+				break;
 		}
 	}
 }

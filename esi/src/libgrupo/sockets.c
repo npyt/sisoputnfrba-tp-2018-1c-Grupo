@@ -47,6 +47,8 @@ int send_content_with_header(int destination_socket, MessageType type, void *con
 
 	send(destination_socket, header, sizeof(MessageHeader), 0);
 
-	send(destination_socket, content, size, 0);
+	if(size > 0) {
+		send(destination_socket, content, size, 0);
+	}
 	return 0;
 }

@@ -1,11 +1,7 @@
-#include "headers.h"
+#include "libgrupo/headers.h"
 
 t_log * logger;
 t_config * config;
-
-typedef struct{
-	char buffer[100];
-} ModuleBuffer;
 
 int main() {
 	printf("COORDINATOR");
@@ -72,34 +68,16 @@ void * listening_thread(int server_socket) {
 		//Procesar el resto del mensaje dependiendo del tipo recibido
 		switch((*header).type) {
 
-		case DATA: ;
+		case UNKNOWN_MSG_TYPE:
+			log_error(logger, "No se reconocio el dato enviado");
+			break;
 
-				ModuleBuffer * module = malloc(sizeof(ModuleBuffer));
-
-				if(recv(client_socket, module, sizeof(ModuleBuffer), 0) == -1){
-						log_error(logger, "ERROR AL RECIBIR DATOS DEL PLANNER");
-						return 1;
-				}
-
-				log_info(logger, "Recibi: %s", (*module).buffer);
-
+		default:
+			log_info(logger, "No reconozco el tipo de mensaje enviado");
+			{
 				int num = 1;
-				send_content_with_header(client_socket, DATA_RECIEVED, &num, sizeof(num));
-
-				break;
-
-				case UNKNOWN_MSG_TYPE:
-
-					log_error(logger, "No se reconocio el dato enviado");
-
-
-				break;
-
-				default:
-					log_info(logger, "No reconozco el tipo de mensaje enviado");
-
-					num = 1;
-					send_content_with_header(client_socket, UNKNOWN_MSG_TYPE, &num, sizeof(num));
+				send_content_with_header(client_socket, UNKNOWN_MSG_TYPE, &num, sizeof(num));
+			}
 		}
 	}
 }

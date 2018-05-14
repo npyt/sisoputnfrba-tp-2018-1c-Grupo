@@ -1,4 +1,5 @@
-#include "headers.h"
+#include "libgrupo/headers.h"
+#include "include/headers.h"
 
 t_log * logger;
 t_config * config;
@@ -12,13 +13,7 @@ PlannerAlgorithm planner_algorithm;
 
 typedef struct{
 	char buffer[100];
-}PlannerConnection;
-
-typedef enum {
-		DATA,
-		DATA_RECIEVED,
-		UNKNOWN_MSG_TYPE
-	} MessageTypeConnection;
+} PlannerConnection;
 
 int main(){
 
@@ -26,10 +21,6 @@ int main(){
 	logger = log_create("planner_logger.log", "PLANNER", true, LOG_LEVEL_TRACE);
 	config = config_create("planner_config.cfg");
 //	define_algorithm(config, planner_algorithm);
-
-/*
- * SOCKET
- */
 
 	int server_socket = server_start(atoi(config_get_string_value(config, "PORT")));
 	if (server_socket == -1) {
@@ -48,11 +39,11 @@ int main(){
 	int coordinator_socket = connect_with_server( "127.0.0.1", 8000);
 
 	if(coordinator_socket < 0){
-				log_error(logger, " ERROR AL CONECTAR CON EL COORDINADOR");
-					return 1;
-			}else{
-				log_info(logger, " CONECTADO EN: %d", coordinator_socket);
-				}
+		log_error(logger, " ERROR AL CONECTAR CON EL COORDINADOR");
+		return 1;
+	} else {
+		log_info(logger, " CONECTADO EN: %d", coordinator_socket);
+	}
 
 	//Armo una estructura para enviar al coordinador
 	PlannerConnection data;
@@ -67,30 +58,30 @@ int main(){
 	MessageHeader * header = malloc(sizeof(MessageHeader));
 
 	if(recv(coordinator_socket, header, sizeof(MessageHeader), 0) == -1) {
-			log_error(logger, "Error al recibir el MessageHeader\n");
-			return 1;
-		}
+		log_error(logger, "Error al recibir el MessageHeader\n");
+		return 1;
+	}
 
 	switch((*header).type) {
-			case DATA_RECIEVED:
-				log_info(logger,"El COORDINADOR me confirma que recibío los datos con éxito");
-				fflush(stdout);
+		case DATA_RECIEVED:
+			log_info(logger,"El COORDINADOR me confirma que recibío los datos con éxito");
+			fflush(stdout);
 
-				break;
-			case UNKNOWN_MSG_TYPE:
-				log_error(logger, "El COORDINADOR no reconoció el último mensaje enviado");
-				fflush(stdout);
+			break;
+		case UNKNOWN_MSG_TYPE:
+			log_error(logger, "El COORDINADOR no reconoció el último mensaje enviado");
+			fflush(stdout);
 
-				break;
-			default:
-				log_error(logger, "No reconozco el tipo de mensaje");
-				fflush(stdout);
+			break;
+		default:
+			log_error(logger, "No reconozco el tipo de mensaje");
+			fflush(stdout);
 
-				int num = 1;
-				send_content_with_header(coordinator_socket, UNKNOWN_MSG_TYPE, &num, sizeof(num));
+			int num = 1;
+			send_content_with_header(coordinator_socket, UNKNOWN_MSG_TYPE, &num, sizeof(num));
 
-				break;
-		}
+			break;
+	}
 
 /*
  * THREADS
@@ -206,7 +197,6 @@ void hrrn(ESI * esi){
 void change_ESI_status(ESI * esi, ESIStatus esi_status){
     esi->status = esi_status;
 }
-
 
 //
 //ESI recibe(){

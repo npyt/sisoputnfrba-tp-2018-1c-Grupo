@@ -17,7 +17,12 @@ typedef struct {
 	int idle_counter;
 } ESI;
 
-
+typedef enum {
+	FIFO,
+	SJF_SD,
+	SJF_CD,
+	HRRN
+} PlannerAlgorithm;
 
 #define RESOURCE_KEY_MAX_SIZE 40
 

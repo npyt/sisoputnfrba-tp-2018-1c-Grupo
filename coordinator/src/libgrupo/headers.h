@@ -18,7 +18,5 @@
 #include <commons/collections/list.h>
 
 void * listening_thread(int server_socket);
-void * instance_thread(Instance * instance);
-void create_instance(t_list * instances, Instance * instance);
 
 #endif /* SRC_HEADERS_H_ */

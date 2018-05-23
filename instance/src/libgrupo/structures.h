@@ -62,6 +62,19 @@ typedef struct {
 } InstanceInitConfig;
 
 
+typedef enum {
+	GET,
+	SET,
+	STORE
+} InstructionOperation;
+
+typedef struct {
+	char key;
+	InstructionOperation operation;
+	char * opt_value;
+} InstructionDetail;
+
+
 
 typedef enum {
 	BLOCKED,

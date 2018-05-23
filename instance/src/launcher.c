@@ -35,6 +35,11 @@ int main() {
 	switch((*header).type) {
 		case INSTANCE_COORD_HANDSHAKE_OK:
 			log_info(logger,"El COORDINADOR me confirma que puedo iniciar la instancia, espero los datos de configuración");
+			InstanceInitConfig * instance_config = malloc(sizeof(InstanceInitConfig));
+			recv(coordinator_socket, instance_config, sizeof(InstanceInitConfig), 0);
+
+			log_info(logger, "LA INTANCIA TENDRÁ %d ENTRADAS DE %d BYTES (COORDINATOR)", instance_config->entry_count, instance_config->entry_size);
+			free(instance_config);
 
 			break;
 		case UNKNOWN_MSG_TYPE:

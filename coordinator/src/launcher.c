@@ -29,15 +29,6 @@ int main() {
 	pthread_t listening_thread_id;
 	pthread_create(&listening_thread_id, NULL, listening_thread, server_socket);
 
-	Instance * instance_1 = malloc(sizeof(Instance));
-	(*instance_1).algorithm = CIRC;
-	(*instance_1).dump = 10;
-	(*instance_1).socket = 35;
-	(*instance_1).entry_table_fst = NULL;
-	strcpy((*instance_1).mounting_point, "/");
-	strcpy((*instance_1).name, "Mi Instancia 1");
-	create_instance(instances, instance_1);
-
 	pthread_exit(NULL);
 	list_destroy(instances);
 	close(server_socket);
@@ -70,11 +61,15 @@ void * listening_thread(int server_socket) {
 			case INSTANCE_COORD_HANDSHAKE:
 				log_info(logger, "Una INSTANCIA quiere conectarse");
 				{
-					int num = 1;
-					send_content_with_header(client_socket, INSTANCE_COORD_HANDSHAKE_OK, &num, 0);
+					InstanceInitConfig * instance_config = malloc(sizeof(InstanceInitConfig));
+					instance_config->entry_count = atoi(config_get_string_value(config, "Q_ENTRIES"));
+					instance_config->entry_size = atoi(config_get_string_value(config, "ENTRY_SIZE"));
+					//Se crea la instancia y se inicia el thread que correponde. Además, informar por socket
+					//los datos correpondientes (cantidad de entradas, tamaño de cada entrada, etc.)
+
+					send_content_with_header(client_socket, INSTANCE_COORD_HANDSHAKE_OK, instance_config, sizeof(InstanceInitConfig));
+					free(instance_config);
 				}
-				//TODO: Se crea la instancia y se inicia el thread que correponde. Además, informar por socket
-				//los datos correpondientes (cantidad de entradas, tamaño de cada entrada, etc.)
 
 				break;
 
@@ -91,16 +86,4 @@ void * listening_thread(int server_socket) {
 				break;
 		}
 	}
-}
-
-void * instance_thread(Instance * instance) {
-
-}
-
-void create_instance(t_list * instances, Instance * instance) {
-	log_info(logger, "LEVANTADA INSTANCIA %s EN SOCKET %d", (*instance).name, (*instance).socket);
-	list_add(instances, instance);
-
-	pthread_t tid;
-	pthread_create(&tid, NULL, instance_thread, instance);
 }

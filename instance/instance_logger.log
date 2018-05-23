@@ -49,3 +49,23 @@
 [INFO] 15:06:20:477 INSTANCE/(9123:9123):  CONECTADO EN: 4
 [INFO] 15:06:20:477 INSTANCE/(9123:9123): Envío saludo al coordinador
 [INFO] 15:06:20:483 INSTANCE/(9123:9123): El COORDINADOR me confirma que puedo iniciar la instancia, espero los datos de configuración
+[INFO] 22:44:03:355 INSTANCE/(4743:4743):  CONECTADO EN: 4
+[INFO] 22:44:03:364 INSTANCE/(4743:4743): Envío saludo al coordinador
+[INFO] 22:44:03:364 INSTANCE/(4743:4743): El COORDINADOR me confirma que puedo iniciar la instancia, espero los datos de configuración
+[INFO] 22:44:03:364 INSTANCE/(4743:4743): LA INTANCIA TENDRÁ 0 ENTRADAS DE -1238368192 BYTES
+[INFO] 22:45:06:80 INSTANCE/(4841:4841):  CONECTADO EN: 4
+[INFO] 22:45:06:80 INSTANCE/(4841:4841): Envío saludo al coordinador
+[INFO] 22:45:06:80 INSTANCE/(4841:4841): El COORDINADOR me confirma que puedo iniciar la instancia, espero los datos de configuración
+[INFO] 22:45:06:80 INSTANCE/(4841:4841): LA INTANCIA TENDRÁ 0 ENTRADAS DE 8 BYTES
+[INFO] 22:46:06:734 INSTANCE/(4920:4920):  CONECTADO EN: 4
+[INFO] 22:46:06:735 INSTANCE/(4920:4920): Envío saludo al coordinador
+[INFO] 22:46:06:735 INSTANCE/(4920:4920): El COORDINADOR me confirma que puedo iniciar la instancia, espero los datos de configuración
+[INFO] 22:46:06:735 INSTANCE/(4920:4920): LA INTANCIA TENDRÁ 0 ENTRADAS DE 8 BYTES
+[INFO] 22:46:34:559 INSTANCE/(4964:4964):  CONECTADO EN: 4
+[INFO] 22:46:34:559 INSTANCE/(4964:4964): Envío saludo al coordinador
+[INFO] 22:46:34:559 INSTANCE/(4964:4964): El COORDINADOR me confirma que puedo iniciar la instancia, espero los datos de configuración
+[INFO] 22:46:34:559 INSTANCE/(4964:4964): LA INTANCIA TENDRÁ 50 ENTRADAS DE 8 BYTES
+[INFO] 22:47:49:399 INSTANCE/(5052:5052):  CONECTADO EN: 4
+[INFO] 22:47:49:402 INSTANCE/(5052:5052): Envío saludo al coordinador
+[INFO] 22:47:49:402 INSTANCE/(5052:5052): El COORDINADOR me confirma que puedo iniciar la instancia, espero los datos de configuración
+[INFO] 22:47:49:403 INSTANCE/(5052:5052): LA INTANCIA TENDRÁ 20 ENTRADAS DE 100 BYTES (COORDINATOR)

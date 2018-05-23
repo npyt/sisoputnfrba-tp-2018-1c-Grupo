@@ -1,5 +1,4 @@
 #include "sockets.h"
-#include "stdio.h"
 
 int server_start(int port) {
 	int server_socket;
@@ -35,7 +34,6 @@ int connect_with_server(char * addr, int port) {
 	memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
 
 	addr_size = sizeof serverAddr;
-
 	if (connect(client_socket, (struct sockaddr *) &serverAddr, addr_size) == -1) {
 		return -1;
 	}

@@ -56,6 +56,11 @@ typedef struct {
 	EntryTableEntry * entry_table_fst;
 } Instance;
 
+typedef struct {
+	int entry_count;
+	int entry_size;
+} InstanceInitConfig;
+
 
 
 typedef enum {

@@ -26,7 +26,7 @@ int main() {
 		log_info(logger, " CONECTADO EN: %d", coordinator_socket);
 	}
 
-	log_info(logger, "Envío saludo al coordinador");
+	log_info(logger, "[I_REQUEST_OK_TO_START_TO_COORD]");
 	{
 		int num = 1;
 		send_content_with_header(coordinator_socket, INSTANCE_COORD_HANDSHAKE, &num, 0);
@@ -38,22 +38,21 @@ int main() {
 	recv(coordinator_socket, header, sizeof(MessageHeader), 0);
 	switch((*header).type) {
 		case INSTANCE_COORD_HANDSHAKE_OK:
-			log_info(logger,"El COORDINADOR me confirma que puedo iniciar la instancia, espero los datos de configuración");
+			log_info(logger,"[COORDINATOR_OK_RECIEVED]");
 			InstanceInitConfig * instance_config = malloc(sizeof(InstanceInitConfig));
 			recv(coordinator_socket, instance_config, sizeof(InstanceInitConfig), 0);
 
-			log_info(logger, "LA INTANCIA TENDRÁ %d ENTRADAS DE %d BYTES (COORDINATOR)", instance_config->entry_count, instance_config->entry_size);
+			log_info(logger, "[CONFIG_RECIEVED][INSTANCES_Q=%d][ENTRY_SIZE=%d]", instance_config->entry_count, instance_config->entry_size);
 			initialize_entry_table(instance_config->entry_count, instance_config->entry_size);
 			free(instance_config);
 
-			InstructionDetail * inst = malloc(sizeof(InstructionDetail));
+			/*InstructionDetail * inst = malloc(sizeof(InstructionDetail));
 			inst->operation = GET;
 			strcpy(inst->key, "MESSI");
 			process_instruction(inst);
 
 			DiccionaryEntry * de = list_get(diccio_table, 0);
 			EntryBlock * bl = list_get(blocks_table, de->entry_number);
-			log_info(logger, "%s = %s", de->key, bl->data);
 
 			inst->operation = SET;
 			strcpy(inst->key, "MESSI");
@@ -64,16 +63,15 @@ int main() {
 
 			de = list_get(diccio_table, 0);
 			bl = list_get(blocks_table, de->entry_number);
-			log_info(logger, "%s = %s", de->key, bl->data);
 
-			dump_diccio_entry(0);
+			dump_diccio_entry(0);*/
 
 			break;
 		case UNKNOWN_MSG_TYPE:
-			log_error(logger, "El COORDINADOR no reconoció el último mensaje enviado");
+			log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
 			break;
 		default:
-			log_error(logger, "No reconozco el tipo de mensaje");
+			log_error(logger, "[UNKOWN_MESSAGE_RECIEVED]");
 			{
 				int num = 1;
 				send_content_with_header(coordinator_socket, UNKNOWN_MSG_TYPE, &num, 0);
@@ -107,7 +105,7 @@ void initialize_entry_table(int q_entries, int entry_size) {
 	}
 
 	circular_alg_last_entry = 0;
-	log_info(logger, "ENTRADAS INICIALIZADAS %d", blocks_table->elements_count);
+	log_info(logger, "[%d_ENTRIES_INIT]", blocks_table->elements_count);
 }
 
 void process_instruction(InstructionDetail * instruction) {
@@ -140,9 +138,9 @@ void process_instruction(InstructionDetail * instruction) {
 						circular_alg_last_entry = 0;
 					}
 
-					log_info(logger, "OPERACIÓN GET SOBRE %s (creado en entry %d)", instruction->key, entry_index);
+					log_info(logger, "[OPERATION_EXECUTED][GET][KEY=%s][CREATED_IN=%d]", instruction->key, entry_index);
 				} else {
-					log_info(logger, "OPERACIÓN GET SOBRE %s", instruction->key);
+					log_info(logger, "[OPERATION_EXECUTED][GET][KEY=%s]", instruction->key);
 				}
 				//TODO: Informar operacion ok
 			}
@@ -159,13 +157,13 @@ void process_instruction(InstructionDetail * instruction) {
 					}
 				}
 				if(found == 0) {
-					log_error(logger, "Se intentó hacer SET sobre una entrada inexistente (KEY = %s)", instruction->key);
+					log_error(logger, "[OPERATION_ABORTED][SET_NOT_FOUND][KEY=%s]", instruction->key);
 					//TODO: Informar operacion fallada
 				} else {
 					entry->size = strlen(instruction->opt_value) * sizeof(char);
 					copy_value_to_block(entry->entry_number, instruction->opt_value, entry->size);
 
-					log_info(logger, "OPERACIÓN SET SOBRE %s", instruction->key);
+					log_info(logger, "[OPERATION_EXECUTED][SET][KEY=%s]", instruction->key);
 					//TODO: Informar operacion ok
 				}
 			}
@@ -180,18 +178,18 @@ void process_instruction(InstructionDetail * instruction) {
 						found = 1;
 						entry = element;
 						dump_diccio_entry(a);
-						log_info(logger, "OPERACIÓN STORE SOBRE %s", instruction->key);
+						log_info(logger, "[OPERATION_EXECUTED][STORE][KEY=%s]", instruction->key);
 						//TODO: Informar operacion ok
 					}
 				}
 				if(found == 0) {
-					log_error(logger, "Se intentó hacer STORE sobre una entrada inexistente (KEY = %s)", instruction->key);
+					log_error(logger, "[OPERATION_ABORTED][STORE_NOT_FOUND][KEY=%s]", instruction->key);
 					//TODO: Informar operacion fallada
 				}
 			}
 			break;
 		default:
-			log_error(logger, "ERROR en el tipo de operación en la instrucción a procesar.");
+			log_error(logger, "[UNKNOWN_OPERATION_TYPE]");
 			break;
 	}
 }
@@ -221,5 +219,4 @@ int dump_diccio_entry(int index) {
 	fwrite(block->data, 1, block->data_size, fl);
 
 	close(fl);
-	log_info(logger, "KEY DUMPEADA %s", entry->key);
 }

@@ -50,7 +50,7 @@ void * listening_thread(int server_socket) {
 		//Procesar el resto del mensaje dependiendo del tipo recibido
 		switch((*header).type) {
 			case PLANNER_COORD_HANDSHAKE:
-				log_info(logger, "El PLANNER quiere conectarse");
+				log_info(logger, "[INCOMING_CONNECTION_PLANNER]");
 				{
 					int num = 1;
 					send_content_with_header(client_socket, PLANNER_COORD_HANDSHAKE_OK, &num, 0);
@@ -59,7 +59,7 @@ void * listening_thread(int server_socket) {
 				break;
 
 			case INSTANCE_COORD_HANDSHAKE:
-				log_info(logger, "Una INSTANCIA quiere conectarse");
+				log_info(logger, "[INCOMING_CONNECTION_INSTANCE]");
 				{
 					InstanceInitConfig * instance_config = malloc(sizeof(InstanceInitConfig));
 					instance_config->entry_count = atoi(config_get_string_value(config, "Q_ENTRIES"));
@@ -74,11 +74,11 @@ void * listening_thread(int server_socket) {
 				break;
 
 			case UNKNOWN_MSG_TYPE:
-				log_error(logger, "No se reconocio el dato enviado");
+				log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
 				break;
 
 			default:
-				log_info(logger, "No reconozco el tipo de mensaje enviado");
+				log_info(logger, "[UNKOWN_MESSAGE_RECIEVED]");
 				{
 					int num = 1;
 					send_content_with_header(client_socket, UNKNOWN_MSG_TYPE, &num, 0);

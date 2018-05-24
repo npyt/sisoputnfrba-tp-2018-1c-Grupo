@@ -24,7 +24,7 @@ int main(){
 
 	int server_socket = server_start(atoi(config_get_string_value(config, "PORT")));
 	if (server_socket == -1) {
-		log_error(logger, "ERROR AL INICIAR EL SERVIDOR");
+		log_error(logger, "ERROR AL INICIAR SERVIDOR");
 		return 1;
 	} else {
 		log_info(logger, "SERVIDOR INICIADO");

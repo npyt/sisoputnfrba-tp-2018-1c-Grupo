@@ -43,9 +43,15 @@ typedef enum {
 
 typedef struct {
 	int entry_number;
+	char * data;
+	int data_size;
+} EntryBlock;
+
+typedef struct {
+	int entry_number;
 	char key[RESOURCE_KEY_MAX_SIZE];
 	int size;
-} EntryTableEntry;
+} DiccionaryEntry;
 
 typedef struct {
 	char name[255];
@@ -53,13 +59,14 @@ typedef struct {
 	char mounting_point[255];
 	int dump;
 	int socket;
-	EntryTableEntry * entry_table_fst;
+	DiccionaryEntry * entry_table_fst;
 } Instance;
 
 typedef struct {
 	int entry_count;
 	int entry_size;
 } InstanceInitConfig;
+
 
 
 typedef enum {
@@ -69,7 +76,7 @@ typedef enum {
 } InstructionOperation;
 
 typedef struct {
-	char key;
+	char key[RESOURCE_KEY_MAX_SIZE];
 	InstructionOperation operation;
 	char * opt_value;
 } InstructionDetail;

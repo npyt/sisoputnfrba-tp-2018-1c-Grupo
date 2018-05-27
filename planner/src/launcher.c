@@ -55,7 +55,14 @@ int main(){
 	if (recv(coordinator_socket, header, sizeof(MessageHeader), 0) == -1) {
 		log_error(logger, "Error al recibir el MessageHeader\n");
 		return 1;
-}
+	}
+	switch((*header).type) {
+		case PLANNER_COORD_HANDSHAKE_OK:
+			log_info(logger, "El COORDINADOR aceptó mi conexión");
+			fflush(stdout);
+			break;
+	}
+	// END COORD CONNECTION
 
 	pthread_t listening_thread_id;
 	pthread_create(&listening_thread_id, NULL, listening_thread, server_socket);

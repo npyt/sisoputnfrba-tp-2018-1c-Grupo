@@ -3,6 +3,7 @@
 	<name>instance</name>
 	<comment></comment>
 	<projects>
+		<project>libgrupo</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

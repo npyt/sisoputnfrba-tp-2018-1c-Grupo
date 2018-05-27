@@ -11,17 +11,19 @@ t_queue * running_queue;
 
 PlannerAlgorithm planner_algorithm;
 
-typedef struct{
-	char buffer[100];
-} PlannerConnection;
-
 int main(){
-
+	// CONFIG
 	planner_algorithm = FIFO;
 	logger = log_create("planner_logger.log", "PLANNER", true, LOG_LEVEL_TRACE);
 	config = config_create("planner_config.cfg");
-//	define_algorithm(config, planner_algorithm);
+	define_planner_algorithm(config, planner_algorithm);
+	// END CONFIG
 
+	// QUEUES
+	create_queues();
+	// END QUEUES
+
+	// CONNECTION SOCKET
 	int server_socket = server_start(atoi(config_get_string_value(config, "PORT")));
 	if (server_socket == -1) {
 		log_error(logger, "ERROR AL INICIAR SERVIDOR");
@@ -35,67 +37,31 @@ int main(){
 	} else {
 		log_info(logger, "SERVIDOR ESCUCHANDO %d", atoi(config_get_string_value(config, "PORT")));
 	}
+	// END CONNECTION SOCKET
 
+	// COORD CONNECTION
 	int coordinator_socket = connect_with_server(config_get_string_value(config, "IP_COORD"),
 			atoi(config_get_string_value(config, "PORT_COORD")));
-
 	if (coordinator_socket < 0){
 		log_error(logger, " ERROR AL CONECTAR CON EL COORDINADOR");
 		return 1;
 	} else {
 		log_info(logger, " CONECTADO EN: %d", coordinator_socket);
 	}
-
 	log_info(logger, "Envío saludo al coordinador");
 	send_only_header(coordinator_socket, PLANNER_COORD_HANDSHAKE);
-
-	//Armo estructura para recibir la respuesta y la espero...
 
 	MessageHeader * header = malloc(sizeof(MessageHeader));
 	if (recv(coordinator_socket, header, sizeof(MessageHeader), 0) == -1) {
 		log_error(logger, "Error al recibir el MessageHeader\n");
 		return 1;
-	}
-
-	switch((*header).type) {
-		case PLANNER_COORD_HANDSHAKE_OK:
-			log_info(logger, "El COORDINADOR aceptó mi conexión");
-			fflush(stdout);
-
-			break;
-	}
-
-/*
- * THREADS
- */
+}
 
 	pthread_t listening_thread_id;
+	pthread_create(&listening_thread_id, NULL, listening_thread, server_socket);
 	pthread_t planner_console_id;
-	//pthread_create(&listening_thread_id, NULL, listening_thread, server_socket);
 	pthread_create(&planner_console_id, NULL, planner_console_launcher, NULL);
 
-/*
- * QUEUES
- */
-
-//	create_queues();
-
-	/*
-	 * Recibir mensaje del ESI
-	 * PLANIFICAR > Ordenar en la cola de ready (Posibilidad de cambiar el algoritmo)
-	 *
-	 *
-	 * sort_esi(incoming_esi, planner_algorithm);
-	 *
-	 * Enviar mensaje de ejecutar al ESI primero de la cola de ready
-	 *
-	 * Recibir mensaje del Coordinador con qué recursos se bloquean (Pasar de Ejecutar a Bloqueados)
-	 *
-	 * Recibir mensaje del ESI si ya terminó su proceso (Pasar de Ejecutar a Finished)
-	 *
-	 * En próximos algoritmos, sacar de la cola de Ready a Listos
-	 *
-	 */
 
 	pthread_exit(NULL);
 	close(server_socket);
@@ -116,6 +82,10 @@ void * listening_thread(int server_socket) {
 
 		//Procesar el resto del mensaje dependiendo del tipo recibido
 		switch((*header).type) {
+			case PLANNER_COORD_HANDSHAKE_OK:
+				log_info(logger, "El COORDINADOR aceptó mi conexión");
+				fflush(stdout);
+				break;
 			case UNKNOWN_MSG_TYPE:
 				log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
 				break;
@@ -151,22 +121,22 @@ void sort_esi(ESI * esi, PlannerAlgorithm algorithm){
 	 }
 }
 
-void define_algorithm(t_config * config, PlannerAlgorithm planner_algorithm){
-	char * buffer_algorithm;
+void define_planner_algorithm(t_config * config, PlannerAlgorithm planner_algorithm){
+	char * buffer_algorithm = config_get_string_value(config, "PLAN_ALG");
 
-	strcpy(buffer_algorithm, config_get_string_value(config, "PLAN_ALG"));
-
-	if(strcmp(buffer_algorithm, "FIFO")){
+	if(strcmp(buffer_algorithm, "FIFO") == 0){
 		planner_algorithm = FIFO;
-	}else if(strcmp(buffer_algorithm, "SJF_CD")){
+	}else if(strcmp(buffer_algorithm, "SJF_CD") == 0){
 		planner_algorithm = SJF_CD;
-	}else if(strcmp(buffer_algorithm, "SJF_SD")){
+	}else if(strcmp(buffer_algorithm, "SJF_SD") == 0){
 		planner_algorithm = SJF_SD;
-	}else if(strcmp(buffer_algorithm, "HRRN")){
+	}else if(strcmp(buffer_algorithm, "HRRN") == 0){
 		planner_algorithm = HRRN;
 	}else{
-		// CASO DE ERROR
+		log_info(logger, " ERROR AL LEER EL ALGORITMO DE PLANIFICACIÓN");
 	}
+	log_info(logger, "ALGORITMO DE PLANIFICACIÓN: %s", buffer_algorithm);
+	free(buffer_algorithm);
 }
 
 void fifo(ESI * esi){
@@ -186,9 +156,4 @@ void hrrn(ESI * esi){
 void change_ESI_status(ESI * esi, ESIStatus esi_status){
     esi->status = esi_status;
 }
-
-//
-//ESI recibe(){
-//	//recibimos los esi enviados
-//}
 

@@ -7,14 +7,17 @@
 #include <commons/collections/list.h>
 #include <commons/collections/queue.h>
 
+#include <string.h>
+
 void fifo(ESI *);
 void sjfcd(ESI *);
 void sjfsd(ESI *);
 void hrrn(ESI *);
 void change_ESI_status(ESI *, ESIStatus);
 void create_queues();
-void define_algorithm(t_config *, PlannerAlgorithm);
+void define_planner_algorithm(t_config *, PlannerAlgorithm);
 void sort_esi(ESI * , PlannerAlgorithm);
 void planner_console_launcher();
+void * listening_thread(int);
 
 #endif

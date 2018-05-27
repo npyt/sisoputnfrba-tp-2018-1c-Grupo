@@ -24,7 +24,7 @@
 
 - [ ] Lectura de scripts y utilización del Parser del proceso ESI
 - [ ] El Planificador debe ser capaz de elegir a un ESI utilizando un algoritmo sencillo (FIFO por ej)
-- [ ] El Coordinador debe ser capaz de distribuir por Equitative Load.
+- [X] El Coordinador debe ser capaz de distribuir por Equitative Load.
 - [X] Desarrollo de lectura y escritura de Entradas en el Instancia (Operaciones GET/SET).
 
 ### [Checkpoint 3 - Presencial - Laboratorio](https://sisoputnfrba.gitbook.io/re-distinto/descripcion-de-las-entregas#checkpoint-3-presencial-laboratorio)

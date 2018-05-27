@@ -128,6 +128,7 @@ void process_instruction(InstructionDetail * instruction) {
 					strcpy(entry->key, instruction->key);
 					entry->size = sizeof(def_val);
 					entry->entry_number = entry_index;
+					entry->blocked = 1;
 
 					list_add_in_index(diccio_table, 0, entry);
 					copy_value_to_block(entry->entry_number, def_val, entry->size);
@@ -139,6 +140,7 @@ void process_instruction(InstructionDetail * instruction) {
 
 					log_info(logger, "[OPERATION_EXECUTED][GET][KEY=%s][CREATED_IN=%d]", instruction->key, entry_index);
 				} else {
+					entry->blocked = 1;
 					log_info(logger, "[OPERATION_EXECUTED][GET][KEY=%s]", instruction->key);
 				}
 				//TODO: Informar operacion ok
@@ -176,6 +178,7 @@ void process_instruction(InstructionDetail * instruction) {
 					if ( strcmp(element->key, instruction->key) == 0 ) {
 						found = 1;
 						entry = element;
+						entry->blocked = 0;
 						dump_diccio_entry(a);
 						log_info(logger, "[OPERATION_EXECUTED][STORE][KEY=%s]", instruction->key);
 						//TODO: Informar operacion ok
@@ -204,6 +207,15 @@ int copy_value_to_block(int fst_block, char * value, int size) {
 	memcpy(block->data, value, block->data_size);
 }
 
+int dump_all_entries() {
+	int a;
+	for(a=0 ; a<diccio_table->elements_count ; a++) {
+		dump_diccio_entry(a);
+	}
+
+	return 0;
+}
+
 int dump_diccio_entry(int index) {
 	DiccionaryEntry * entry = list_get(diccio_table, index);
 	EntryBlock * block = list_get(blocks_table, entry->entry_number);
@@ -218,4 +230,5 @@ int dump_diccio_entry(int index) {
 	fwrite(block->data, 1, block->data_size, fl);
 
 	close(fl);
+	return 0;
 }

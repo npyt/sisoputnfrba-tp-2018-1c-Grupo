@@ -51,6 +51,7 @@ typedef struct {
 	int entry_number;
 	char key[RESOURCE_KEY_MAX_SIZE];
 	int size;
+	int blocked;
 } DiccionaryEntry;
 
 typedef struct {
@@ -79,6 +80,7 @@ typedef struct {
 	char key[RESOURCE_KEY_MAX_SIZE];
 	InstructionOperation operation;
 	char * opt_value;
+	char ESIName[64];
 } InstructionDetail;
 
 
@@ -90,7 +92,7 @@ typedef enum {
 } ResourceAllocationStatus;
 
 typedef struct {
-	int esi;
+	char ESIName[64];
 	char key[RESOURCE_KEY_MAX_SIZE];
 	ResourceAllocationStatus status;
 } ResourceAllocation;

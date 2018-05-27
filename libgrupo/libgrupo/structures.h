@@ -42,6 +42,12 @@ typedef enum {
 	BSY
 } ReplacementAlgorithm;
 
+typedef enum {
+	LSU,
+	EL,
+	KE
+} DistributionAlgorithm;
+
 typedef struct {
 	int entry_number;
 	char * data;

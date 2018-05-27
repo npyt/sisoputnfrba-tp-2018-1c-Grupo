@@ -52,9 +52,7 @@ void * listening_thread(int server_socket) {
 			case PLANNER_COORD_HANDSHAKE:
 				log_info(logger, "[INCOMING_CONNECTION_PLANNER]");
 				send_only_header(client_socket, PLANNER_COORD_HANDSHAKE_OK);
-
 				break;
-
 			case INSTANCE_COORD_HANDSHAKE:
 				log_info(logger, "[INCOMING_CONNECTION_INSTANCE]");
 				{
@@ -67,13 +65,10 @@ void * listening_thread(int server_socket) {
 					send_content_with_header(client_socket, INSTANCE_COORD_HANDSHAKE_OK, instance_config, sizeof(InstanceInitConfig));
 					free(instance_config);
 				}
-
 				break;
-
 			case UNKNOWN_MSG_TYPE:
 				log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
 				break;
-
 			default:
 				log_info(logger, "[UNKOWN_MESSAGE_RECIEVED]");
 				send_only_header(client_socket, UNKNOWN_MSG_TYPE);

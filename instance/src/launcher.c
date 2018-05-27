@@ -41,7 +41,7 @@ int main() {
 }
 
 void * listening_thread(int coordinator_socket) {
-	log_info(logger, "[I_REQUEST_OK_TO_START_TO_COORD]);
+	log_info(logger, "[I_REQUEST_OK_TO_START_TO_COORD]");
 	send_content_with_header(coordinator_socket, INSTANCE_COORD_HANDSHAKE, INSTANCE_NAME, sizeof(INSTANCE_NAME) * sizeof('a'));
 
 	while(1) {

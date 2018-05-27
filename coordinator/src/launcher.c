@@ -1,7 +1,10 @@
 #include <libgrupo/headers.h>
+#include "include/headers.h"
 
 t_log * logger;
 t_config * config;
+
+t_list * instances = NULL;
 
 int main() {
 	printf("COORDINATOR");
@@ -9,7 +12,7 @@ int main() {
 	logger = log_create("coordinator_logger.log", "COORDINATOR", true, LOG_LEVEL_TRACE);
 	config = config_create("coordinator_config.cfg");
 
-	t_list * instances = list_create();
+	instances = list_create();
 
 	int server_socket = server_start(atoi(config_get_string_value(config, "PORT")));
 	if (server_socket == -1) {
@@ -56,19 +59,23 @@ void * listening_thread(int server_socket) {
 			case INSTANCE_COORD_HANDSHAKE:
 				{
 					char * temp_str = malloc(header->size);
-					log_error(logger, "%d", header->size);
 					recv(client_socket, temp_str, header->size, 0);
-					log_info(logger, "[INCOMING_CONNECTION_INSTANCE][%s]", temp_str);
+
+					InstanceRegistration * ir = malloc(sizeof(InstanceRegistration));
+					ir->name = temp_str;
+					ir->socket = client_socket;
+					ir->status = AVAILABLE;
+					list_add(instances, ir);
+
+					log_info(logger, "[INCOMING_CONNECTION_INSTANCE][%s]", ir->name);
 
 					InstanceInitConfig * instance_config = malloc(sizeof(InstanceInitConfig));
 					instance_config->entry_count = atoi(config_get_string_value(config, "Q_ENTRIES"));
 					instance_config->entry_size = atoi(config_get_string_value(config, "ENTRY_SIZE"));
-					//Se crea la instancia y se inicia el thread que correponde. Además, informar por socket
-					//los datos correpondientes (cantidad de entradas, tamaño de cada entrada, etc.)
+					//TODO: Se crea la instancia y se inicia el thread que correponde.
 
 					send_content_with_header(client_socket, INSTANCE_COORD_HANDSHAKE_OK, instance_config, sizeof(InstanceInitConfig));
 					free(instance_config);
-					free(temp_str);
 				}
 				break;
 			case UNKNOWN_MSG_TYPE:

@@ -16,21 +16,31 @@ int main() {
 	logger = log_create("instance_logger.log", "INSTANCE", true, LOG_LEVEL_TRACE);
 	config = config_create("instance_config.cfg");
 
-	int coordinator_socket = connect_with_server(config_get_string_value(config, "IP_COORD"),
-			atoi(config_get_string_value(config, "PORT_COORD")));
-
-	if(coordinator_socket < 0){
-		log_error(logger, " ERROR AL CONECTAR CON EL COORDINADOR");
+	//Mi puerto para recibir mensajes
+	int server_socket = server_start(0);
+	if (server_socket == -1) {
+		log_error(logger, "ERROR AL INICIAR SERVIDOR");
 		return 1;
 	} else {
-		log_info(logger, " CONECTADO EN: %d", coordinator_socket);
+		log_info(logger, "SERVIDOR INICIADO");
+	}
+	if (listen(server_socket, 5) == -1) {
+		log_error(logger, "ERROR AL ESCUCHAR EN PUERTO");
+	} else {
+		log_info(logger, "SERVIDOR ESCUCHANDO");
 	}
 
-	log_info(logger, "[I_REQUEST_OK_TO_START_TO_COORD]");
-	{
-		int num = 1;
-		send_content_with_header(coordinator_socket, INSTANCE_COORD_HANDSHAKE, &num, 0);
+	//Puerto para comunicarse con el coordinador
+	int coordinator_socket = connect_with_server(config_get_string_value(config, "IP_COORD"),
+			atoi(config_get_string_value(config, "PORT_COORD")));
+	if(coordinator_socket < 0){
+		log_error(logger, "ERROR AL CONECTAR CON EL COORDINADOR");
+		return 1;
+	} else {
+		log_info(logger, "CONECTADO EN: %d", coordinator_socket);
 	}
+	log_info(logger, "[I_REQUEST_OK_TO_START_TO_COORD]");
+	send_only_header(coordinator_socket, INSTANCE_COORD_HANDSHAKE);
 
 	MOUNTING_POINT = config_get_string_value(config, "MOUNTING_POINT");
 
@@ -72,10 +82,7 @@ int main() {
 			break;
 		default:
 			log_error(logger, "[UNKOWN_MESSAGE_RECIEVED]");
-			{
-				int num = 1;
-				send_content_with_header(coordinator_socket, UNKNOWN_MSG_TYPE, &num, 0);
-			}
+			send_only_header(coordinator_socket, UNKNOWN_MSG_TYPE);
 			break;
 	}
 
@@ -86,7 +93,27 @@ int main() {
 }
 
 void * listening_thread(int server_socket) {
+	while(1) {
+		struct sockaddr_in client;
+		int c = sizeof(struct sockaddr_in);
+		int client_socket = accept(server_socket, (struct sockaddr *)&client, (socklen_t *)&c);
+		log_info(logger, "CONEXION RECIBIDA EN SOCKET %d", client_socket);
 
+		MessageHeader * header = malloc(sizeof(MessageHeader));
+
+		int rec = recv(client_socket, header, sizeof(MessageHeader), 0);
+
+		//Procesar el resto del mensaje dependiendo del tipo recibido
+		switch((*header).type) {
+			case UNKNOWN_MSG_TYPE:
+				log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
+				break;
+			default:
+				log_error(logger, "[UNKOWN_MESSAGE_RECIEVED]");
+				send_only_header(client_socket, UNKNOWN_MSG_TYPE);
+				break;
+		}
+	}
 }
 
 void initialize_entry_table(int q_entries, int entry_size) {

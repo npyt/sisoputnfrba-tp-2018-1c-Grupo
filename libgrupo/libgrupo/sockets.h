@@ -23,5 +23,6 @@
 	int server_start(int port);
 	int connect_with_server(char * addr, int port);
 	int send_content_with_header(int destination_socket, MessageType type, void *content, int size);
+	int send_only_header(int destination_socket, MessageType type);
 
 #endif /* SOCKETS_H_ */

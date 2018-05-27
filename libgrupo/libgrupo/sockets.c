@@ -52,3 +52,12 @@ int send_content_with_header(int destination_socket, MessageType type, void *con
 	}
 	return 0;
 }
+
+int send_only_header(int destination_socket, MessageType type) {
+	MessageHeader * header = malloc(sizeof(MessageHeader));
+	(*header).type = type;
+	(*header).size = 0;
+
+	send(destination_socket, header, sizeof(MessageHeader), 0);
+	return 0;
+}

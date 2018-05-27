@@ -51,10 +51,7 @@ void * listening_thread(int server_socket) {
 		switch((*header).type) {
 			case PLANNER_COORD_HANDSHAKE:
 				log_info(logger, "[INCOMING_CONNECTION_PLANNER]");
-				{
-					int num = 1;
-					send_content_with_header(client_socket, PLANNER_COORD_HANDSHAKE_OK, &num, 0);
-				}
+				send_only_header(client_socket, PLANNER_COORD_HANDSHAKE_OK);
 
 				break;
 
@@ -79,10 +76,7 @@ void * listening_thread(int server_socket) {
 
 			default:
 				log_info(logger, "[UNKOWN_MESSAGE_RECIEVED]");
-				{
-					int num = 1;
-					send_content_with_header(client_socket, UNKNOWN_MSG_TYPE, &num, 0);
-				}
+				send_only_header(client_socket, UNKNOWN_MSG_TYPE);
 				break;
 		}
 	}

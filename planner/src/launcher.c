@@ -47,10 +47,7 @@ int main(){
 	}
 
 	log_info(logger, "Envío saludo al coordinador");
-	{
-		int aux = 0;
-		send_content_with_header(coordinator_socket, PLANNER_COORD_HANDSHAKE, &aux, 0);
-	}
+	send_only_header(coordinator_socket, PLANNER_COORD_HANDSHAKE);
 
 	//Armo estructura para recibir la respuesta y la espero...
 
@@ -120,17 +117,11 @@ void * listening_thread(int server_socket) {
 		//Procesar el resto del mensaje dependiendo del tipo recibido
 		switch((*header).type) {
 			case UNKNOWN_MSG_TYPE:
-				log_error(logger, "El receptor no reconoció el último mensaje enviado");
-
+				log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
 				break;
 			default:
-				log_error(logger, "No reconozco el tipo de mensaje");
-
-				{
-					int num = 1;
-					send_content_with_header(client_socket, UNKNOWN_MSG_TYPE, &num, 0);
-				}
-
+				log_error(logger, "[UNKOWN_MESSAGE_RECIEVED]");
+				send_only_header(client_socket, UNKNOWN_MSG_TYPE);
 				break;
 		}
 	}

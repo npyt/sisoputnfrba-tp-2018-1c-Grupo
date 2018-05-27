@@ -54,8 +54,12 @@ void * listening_thread(int server_socket) {
 				send_only_header(client_socket, PLANNER_COORD_HANDSHAKE_OK);
 				break;
 			case INSTANCE_COORD_HANDSHAKE:
-				log_info(logger, "[INCOMING_CONNECTION_INSTANCE]");
 				{
+					char * temp_str = malloc(header->size);
+					log_error(logger, "%d", header->size);
+					recv(client_socket, temp_str, header->size, 0);
+					log_info(logger, "[INCOMING_CONNECTION_INSTANCE][%s]", temp_str);
+
 					InstanceInitConfig * instance_config = malloc(sizeof(InstanceInitConfig));
 					instance_config->entry_count = atoi(config_get_string_value(config, "Q_ENTRIES"));
 					instance_config->entry_size = atoi(config_get_string_value(config, "ENTRY_SIZE"));
@@ -64,6 +68,7 @@ void * listening_thread(int server_socket) {
 
 					send_content_with_header(client_socket, INSTANCE_COORD_HANDSHAKE_OK, instance_config, sizeof(InstanceInitConfig));
 					free(instance_config);
+					free(temp_str);
 				}
 				break;
 			case UNKNOWN_MSG_TYPE:

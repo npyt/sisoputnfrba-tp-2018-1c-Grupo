@@ -9,6 +9,7 @@ t_list * diccio_table = NULL;
 int MAX_ENTRIES;
 int ENTRY_SIZE_PARAM;
 char * MOUNTING_POINT;
+char * INSTANCE_NAME;
 
 int circular_alg_last_entry;
 
@@ -27,6 +28,7 @@ int main() {
 	}
 
 	MOUNTING_POINT = config_get_string_value(config, "MOUNTING_POINT");
+	INSTANCE_NAME = config_get_string_value(config, "NAME");
 
 	pthread_t listening_thread_id;
 	pthread_create(&listening_thread_id, NULL, listening_thread, coordinator_socket);
@@ -39,8 +41,8 @@ int main() {
 }
 
 void * listening_thread(int coordinator_socket) {
-	log_info(logger, "[I_REQUEST_OK_TO_START_TO_COORD]");
-	send_only_header(coordinator_socket, INSTANCE_COORD_HANDSHAKE);
+	log_info(logger, "[I_REQUEST_OK_TO_START_TO_COORD]);
+	send_content_with_header(coordinator_socket, INSTANCE_COORD_HANDSHAKE, INSTANCE_NAME, sizeof(INSTANCE_NAME) * sizeof('a'));
 
 	while(1) {
 		MessageHeader * header = malloc(sizeof(MessageHeader));

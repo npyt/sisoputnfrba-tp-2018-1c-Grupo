@@ -17,7 +17,7 @@
 ### [Checkpoint 1 - No presencial](https://github.com/sisoputnfrba/2018-1c-re-distinto/blob/master/descripcion-entregas.md#checkpoint-1---no-presencial)
 
 - [X] Creación de todos los procesos que intervienen
-- [ ] Desarrollar una comunicación simple entre los procesos que permita propagar un mensaje por cada conexión necesaria
+- [X] Desarrollar una comunicación simple entre los procesos que permita propagar un mensaje por cada conexión necesaria
 - [X] Implementar la consola del Planificador sin funcionalidades
 
 ### [Checkpoint 2 - No presencial](https://sisoputnfrba.gitbook.io/re-distinto/descripcion-de-las-entregas#checkpoint-2-no-presencial)
@@ -25,7 +25,7 @@
 - [ ] Lectura de scripts y utilización del Parser del proceso ESI
 - [ ] El Planificador debe ser capaz de elegir a un ESI utilizando un algoritmo sencillo (FIFO por ej)
 - [ ] El Coordinador debe ser capaz de distribuir por Equitative Load.
-- [ ] Desarrollo de lectura y escritura de Entradas en el Instancia (Operaciones GET/SET).
+- [X] Desarrollo de lectura y escritura de Entradas en el Instancia (Operaciones GET/SET).
 
 ### [Checkpoint 3 - Presencial - Laboratorio](https://sisoputnfrba.gitbook.io/re-distinto/descripcion-de-las-entregas#checkpoint-3-presencial-laboratorio)
 

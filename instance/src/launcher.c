@@ -129,6 +129,7 @@ void process_instruction(InstructionDetail * instruction) {
 					entry->size = sizeof(def_val);
 					entry->entry_number = entry_index;
 					entry->blocked = 1;
+					strcpy(entry->blockedBy, instruction->ESIName);
 
 					list_add_in_index(diccio_table, 0, entry);
 					copy_value_to_block(entry->entry_number, def_val, entry->size);
@@ -141,6 +142,7 @@ void process_instruction(InstructionDetail * instruction) {
 					log_info(logger, "[OPERATION_EXECUTED][GET][KEY=%s][CREATED_IN=%d]", instruction->key, entry_index);
 				} else {
 					entry->blocked = 1;
+					strcpy(entry->blockedBy, instruction->ESIName);
 					log_info(logger, "[OPERATION_EXECUTED][GET][KEY=%s]", instruction->key);
 				}
 				//TODO: Informar operacion ok
@@ -158,11 +160,15 @@ void process_instruction(InstructionDetail * instruction) {
 					}
 				}
 				if(found == 0) {
-					log_error(logger, "[OPERATION_ABORTED][SET_NOT_FOUND][KEY=%s]", instruction->key);
+					log_error(logger, "[OPERATION_ABORTED][SET][SET_NOT_FOUND][KEY=%s]", instruction->key);
 					//TODO: Informar operacion fallada
 				} else {
-					entry->size = strlen(instruction->opt_value) * sizeof(char);
-					copy_value_to_block(entry->entry_number, instruction->opt_value, entry->size);
+					if(entry->blocked == 1 && strcmp(entry->blockedBy, instruction->ESIName) ) {
+						entry->size = strlen(instruction->opt_value) * sizeof(char);
+						copy_value_to_block(entry->entry_number, instruction->opt_value, entry->size);
+					} else {
+						log_error(logger, "[OPERATION_ABORTED][SET][KEY_NOT_BLOCKED_BY_ESI][KEY=%s]", instruction->key);
+					}
 
 					log_info(logger, "[OPERATION_EXECUTED][SET][KEY=%s]", instruction->key);
 					//TODO: Informar operacion ok
@@ -178,10 +184,15 @@ void process_instruction(InstructionDetail * instruction) {
 					if ( strcmp(element->key, instruction->key) == 0 ) {
 						found = 1;
 						entry = element;
-						entry->blocked = 0;
-						dump_diccio_entry(a);
-						log_info(logger, "[OPERATION_EXECUTED][STORE][KEY=%s]", instruction->key);
-						//TODO: Informar operacion ok
+						if(entry->blocked == 1 && strcmp(entry->blockedBy, instruction->ESIName) ) {
+							entry->blocked = 0;
+							dump_diccio_entry(a);
+							log_info(logger, "[OPERATION_EXECUTED][STORE][KEY=%s]", instruction->key);
+							//TODO: Informar operacion ok
+						} else {
+							log_error(logger, "[OPERATION_ABORTED][STORE][KEY_NOT_BLOCKED_BY_ESI][KEY=%s]", instruction->key);
+							//TODO: Informar operacion fallada
+						}
 					}
 				}
 				if(found == 0) {

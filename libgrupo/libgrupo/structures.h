@@ -25,6 +25,7 @@ typedef enum {
 } PlannerAlgorithm;
 
 #define RESOURCE_KEY_MAX_SIZE 40
+#define ESI_NAME_MAX_SIZE 64
 
 typedef struct {
 	char key[RESOURCE_KEY_MAX_SIZE];
@@ -52,6 +53,7 @@ typedef struct {
 	char key[RESOURCE_KEY_MAX_SIZE];
 	int size;
 	int blocked;
+	char blockedBy[ESI_NAME_MAX_SIZE];
 } DiccionaryEntry;
 
 typedef struct {
@@ -80,7 +82,7 @@ typedef struct {
 	char key[RESOURCE_KEY_MAX_SIZE];
 	InstructionOperation operation;
 	char * opt_value;
-	char ESIName[64];
+	char ESIName[ESI_NAME_MAX_SIZE];
 } InstructionDetail;
 
 
@@ -92,7 +94,7 @@ typedef enum {
 } ResourceAllocationStatus;
 
 typedef struct {
-	char ESIName[64];
+	char ESIName[ESI_NAME_MAX_SIZE];
 	char key[RESOURCE_KEY_MAX_SIZE];
 	ResourceAllocationStatus status;
 } ResourceAllocation;

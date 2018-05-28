@@ -5,7 +5,8 @@ typedef enum {
 	STATUS_BLOCKED,
 	STATUS_RUNNING,
 	STATUS_FINISHED,
-	STATUS_READY
+	STATUS_READY,
+	STATUS_NEW
 } ESIStatus;
 
 typedef struct {

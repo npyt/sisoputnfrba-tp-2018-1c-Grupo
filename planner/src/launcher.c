@@ -8,14 +8,15 @@ t_queue * ready_queue;
 t_queue * blocked_queue;
 t_queue * finished_queue;
 t_queue * running_queue;
-
 PlannerAlgorithm planner_algorithm;
+int esi_id_counter;
 
 int main(){
 	// CONFIG
 	planner_algorithm = FIFO;
 	logger = log_create("planner_logger.log", "PLANNER", true, LOG_LEVEL_TRACE);
 	config = config_create("planner_config.cfg");
+	esi_id_counter = config_get_int_value(config, "INIT_ID");
 	define_planner_algorithm(config, planner_algorithm);
 	// END CONFIG
 
@@ -92,6 +93,14 @@ void * listening_thread(int server_socket) {
 				log_info(logger, "[INCOMING_CONNECTION_ESI]");
 				send_only_header(client_socket, ESI_PLANNER_HANDSHAKE_OK);
 				break;
+			// TESTING CODE
+			case INCOMING_ESI:
+				log_info(logger, "[INCOMING_NEW_ESI]");
+				ESI * esi_registered = malloc(sizeof(ESI));
+				register_esi(esi_registered);
+				sort_esi(esi_registered, planner_algorithm);
+				break;
+			// END TESTING CODE
 			case UNKNOWN_MSG_TYPE:
 				log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
 				break;
@@ -103,29 +112,47 @@ void * listening_thread(int server_socket) {
 	}
 }
 
-void create_queues(){
-	ready_queue = queue_create();
-	blocked_queue = queue_create();
-	finished_queue = queue_create();
-	running_queue = queue_create();
+/* // RUN ORDER
+ * queue_pop(ready_queue, esi_to_run);
+ * queue_push(running_queue, esi_to_run);
+ * change_esi_status(esi_to_run, STATUS_RUNNING);
+ * send_only_header(client_socket, PLANNER_ESI_RUN);
+ * // END RUN ORDER
+ */
+
+// TESTING CODE
+
+void register_esi(ESI * incoming_esi){
+	change_ESI_status(incoming_esi, STATUS_NEW);
+	incoming_esi->last_estimate =config_get_int_value(config, "EST_ZERO");
+	incoming_esi->idle_counter = 0;
+	incoming_esi->program_counter = 0;
+	incoming_esi->last_job = 0;
+	assign_esi_id(incoming_esi);
 }
+
+void assign_esi_id(ESI * incoming_esi){
+	incoming_esi->id = esi_id_counter;
+	esi_id_counter++;
+}
+
 
 void sort_esi(ESI * esi, PlannerAlgorithm algorithm){
 	 switch(algorithm){
 	 case FIFO:
-		 fifo(incoming_esi);
+		 queue_push(ready_queue, esi);
+		 change_ESI_status(esi, STATUS_READY);
 		 break;
 	 case SJF_SD:
-		 sjfsd(incoming_esi);
 		 break;
 	 case SJF_CD:
-		 sjfcd(incoming_esi);
 		 break;
 	 case HRRN:
-		 hrrn(incoming_esi);
 		 break;
 	 }
 }
+// END TESTING CODE
+
 
 void define_planner_algorithm(t_config * config, PlannerAlgorithm planner_algorithm){
 	char * buffer_algorithm = config_get_string_value(config, "PLAN_ALG");
@@ -145,21 +172,14 @@ void define_planner_algorithm(t_config * config, PlannerAlgorithm planner_algori
 	free(buffer_algorithm);
 }
 
-void fifo(ESI * esi){
-    queue_push(ready_queue, esi);
-}
-
-void sjfsd(ESI * esi){
-
-}
-void sjfcd(ESI * esi){
-
-}
-void hrrn(ESI * esi){
-
-}
-
 void change_ESI_status(ESI * esi, ESIStatus esi_status){
     esi->status = esi_status;
+}
+
+void create_queues(){
+	ready_queue = queue_create();
+	blocked_queue = queue_create();
+	finished_queue = queue_create();
+	running_queue = queue_create();
 }
 

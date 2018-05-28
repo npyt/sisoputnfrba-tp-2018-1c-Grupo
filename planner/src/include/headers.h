@@ -9,15 +9,18 @@
 
 #include <string.h>
 
-void fifo(ESI *);
-void sjfcd(ESI *);
-void sjfsd(ESI *);
-void hrrn(ESI *);
 void change_ESI_status(ESI *, ESIStatus);
 void create_queues();
 void define_planner_algorithm(t_config *, PlannerAlgorithm);
-void sort_esi(ESI * , PlannerAlgorithm);
 void planner_console_launcher();
 void * listening_thread(int);
+
+// TESTING CODE
+
+void register_esi(ESI *);
+void assign_esi_id(ESI *);
+void sort_esi(ESI * , PlannerAlgorithm);
+
+// END TESTING CODE
 
 #endif

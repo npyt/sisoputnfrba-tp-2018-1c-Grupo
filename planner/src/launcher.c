@@ -50,18 +50,8 @@ int main(){
 		log_info(logger, " CONECTADO EN: %d", coordinator_socket);
 	}
 	log_info(logger, "Envío saludo al coordinador");
-	MessageHeader * header = malloc(sizeof(MessageHeader));
 	send_only_header(coordinator_socket, PLANNER_COORD_HANDSHAKE);
-	if (recv(coordinator_socket, header, sizeof(MessageHeader), 0) == -1) {
-		log_error(logger, "Error al recibir el MessageHeader\n");
-		return 1;
-	}
-	switch((*header).type){
-		case PLANNER_COORD_HANDSHAKE_OK:
-			log_info(logger, "El COORDINADOR aceptó mi conexión");
-			fflush(stdout);
-			break;
-	}
+
 
 	// END COORD CONNECTION
 
@@ -89,17 +79,24 @@ void * listening_thread(int server_socket) {
 		int rec = recv(client_socket, header, sizeof(MessageHeader), 0);
 
 		switch((*header).type) {
+			case PLANNER_COORD_HANDSHAKE_OK:
+				log_info(logger, "El COORDINADOR aceptó mi conexión");
+				fflush(stdout);
+				break;
 			case ESI_PLANNER_HANDSHAKE:
 				log_info(logger, "[INCOMING_CONNECTION_ESI]");
-				send_only_header(client_socket, ESI_PLANNER_HANDSHAKE_OK);
-				break;
-			// TESTING CODE
-			case INCOMING_ESI:
-				log_info(logger, "[INCOMING_NEW_ESI]");
 				ESI * esi_registered = malloc(sizeof(ESI));
 				register_esi(esi_registered);
 				sort_esi(esi_registered, planner_algorithm);
+				send_only_header(client_socket, ESI_PLANNER_HANDSHAKE_OK);
 				break;
+				/*case OPERATION_ERROR:
+				 *	esi_to_finish = queue_pop(running_queue);
+				 *	queue_push(finished_queue, esi_to_finish);
+				 *	change_esi_status(esi_to_finish, STATUS_FINISHED);
+				 *	ejecutar el siguiente
+				 *
+				*/
 			// END TESTING CODE
 			case UNKNOWN_MSG_TYPE:
 				log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
@@ -113,7 +110,7 @@ void * listening_thread(int server_socket) {
 }
 
 /* // RUN ORDER
- * queue_pop(ready_queue, esi_to_run);
+ * esi_to_run = queue_pop(ready_queue);
  * queue_push(running_queue, esi_to_run);
  * change_esi_status(esi_to_run, STATUS_RUNNING);
  * send_only_header(client_socket, PLANNER_ESI_RUN);

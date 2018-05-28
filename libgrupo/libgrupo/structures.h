@@ -79,9 +79,9 @@ typedef struct {
 
 
 typedef enum {
-	GET,
-	SET,
-	STORE
+	GET_OP,
+	SET_OP,
+	STORE_OP
 } InstructionOperation;
 
 typedef struct {

@@ -111,7 +111,7 @@ void initialize_entry_table(int q_entries, int entry_size) {
 
 void process_instruction(InstructionDetail * instruction) {
 	switch(instruction->operation) {
-		case GET:
+		case GET_OP:
 			{
 				int a, found = 0;
 				DiccionaryEntry * entry = -1;
@@ -150,7 +150,7 @@ void process_instruction(InstructionDetail * instruction) {
 				//TODO: Informar operacion ok
 			}
 			break;
-		case SET:
+		case SET_OP:
 			{
 				int a, found = 0;
 				DiccionaryEntry * entry = -1;
@@ -177,7 +177,7 @@ void process_instruction(InstructionDetail * instruction) {
 				}
 			}
 			break;
-		case STORE:
+		case STORE_OP:
 			{
 				int a, found = 0;
 				DiccionaryEntry * entry = -1;

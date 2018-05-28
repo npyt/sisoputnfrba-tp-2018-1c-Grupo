@@ -49,23 +49,24 @@ int main(){
 		log_info(logger, " CONECTADO EN: %d", coordinator_socket);
 	}
 	log_info(logger, "Envío saludo al coordinador");
-	send_only_header(coordinator_socket, PLANNER_COORD_HANDSHAKE);
-
 	MessageHeader * header = malloc(sizeof(MessageHeader));
+	send_only_header(coordinator_socket, PLANNER_COORD_HANDSHAKE);
 	if (recv(coordinator_socket, header, sizeof(MessageHeader), 0) == -1) {
 		log_error(logger, "Error al recibir el MessageHeader\n");
 		return 1;
 	}
-	switch((*header).type) {
+	switch((*header).type){
 		case PLANNER_COORD_HANDSHAKE_OK:
 			log_info(logger, "El COORDINADOR aceptó mi conexión");
 			fflush(stdout);
 			break;
 	}
+
 	// END COORD CONNECTION
 
 	pthread_t listening_thread_id;
 	pthread_create(&listening_thread_id, NULL, listening_thread, server_socket);
+
 	pthread_t planner_console_id;
 	pthread_create(&planner_console_id, NULL, planner_console_launcher, NULL);
 
@@ -84,14 +85,12 @@ void * listening_thread(int server_socket) {
 		log_info(logger, "CONEXION RECIBIDA EN SOCKET %d", client_socket);
 
 		MessageHeader * header = malloc(sizeof(MessageHeader));
-
 		int rec = recv(client_socket, header, sizeof(MessageHeader), 0);
 
-		//Procesar el resto del mensaje dependiendo del tipo recibido
 		switch((*header).type) {
-			case PLANNER_COORD_HANDSHAKE_OK:
-				log_info(logger, "El COORDINADOR aceptó mi conexión");
-				fflush(stdout);
+			case ESI_PLANNER_HANDSHAKE:
+				log_info(logger, "[INCOMING_CONNECTION_ESI]");
+				send_only_header(client_socket, ESI_PLANNER_HANDSHAKE_OK);
 				break;
 			case UNKNOWN_MSG_TYPE:
 				log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");

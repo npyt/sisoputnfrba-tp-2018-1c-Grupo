@@ -19,7 +19,7 @@ int main(int argc, char **argv){
 
 	logger = log_create("esi_logger.log", "ESI", true, LOG_LEVEL_TRACE);
 	config = config_create("esi_config.cfg");
-/*
+	// COORD CONECTION
 	int coordinator_socket = connect_with_server(config_get_string_value(config, "IP_COORD"),
 			atoi(config_get_string_value(config, "PORT_COORD")));
 	if (coordinator_socket < 0){
@@ -30,7 +30,6 @@ int main(int argc, char **argv){
 	}
 	log_info(logger, "Envío saludo al coordinador");
 	send_only_header(coordinator_socket, ESI_COORD_HANDSHAKE);
-*/
 	// END COORD CONNECTION
 
 	// PLANNER CONNECTION
@@ -44,8 +43,6 @@ int main(int argc, char **argv){
 	}
 	log_info(logger, "Envío saludo al planificador");
 	send_only_header(planner_socket, ESI_PLANNER_HANDSHAKE);
-
-
 	// END PLANNER CONNECTION
 
 	// LISTENING THREAD
@@ -53,11 +50,11 @@ int main(int argc, char **argv){
 	//	readParams.coord_socket=coordinator_socket;
 	//	readParams.planner_socket=planner_socket;
 
-	pthread_t listening_thread_id;
-	pthread_create(&listening_thread_id, NULL, listening_thread, planner_socket);
+	pthread_t listening_thread_planner;
+	pthread_create(&listening_thread_planner, NULL, listening_thread, planner_socket);
 
-	//	pthread_t listening_thread_id;
-	//	pthread_create(&listening_thread_id, NULL, listening_thread, coordinator_socket);
+	pthread_t listening_thread_coordinator;
+	pthread_create(&listening_thread_coordinator, NULL, listening_thread, coordinator_socket);
 
 	// END LISTENING THREAD
 //
@@ -121,14 +118,14 @@ void * listening_thread(int server_socket) {
 				// terminar ejecución
 				fflush(stdout);
 				break;
+			case ESI_COORD_HANDSHAKE_OK:
+				log_info(logger, "El COORDINADOR aceptó mi conexión");
+				fflush(stdout);
+				break;
 			case ESI_PLANNER_HANDSHAKE_OK:
 				log_info(logger, "El PLANIFICADOR aceptó mi conexión");
 				// recv(planner_socket, header, sizeof(MessageHeader), 0) == -1)
 				// log_info(logger, "Mi ID de ESI es : %d", id_esi);
-				fflush(stdout);
-				break;
-			case ESI_COORD_HANDSHAKE_OK:
-				log_info(logger, "El COORDINADOR aceptó mi conexión");
 				fflush(stdout);
 				break;
 			case UNKNOWN_MSG_TYPE:

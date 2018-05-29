@@ -79,10 +79,6 @@ void * listening_thread(int server_socket) {
 		int rec = recv(client_socket, header, sizeof(MessageHeader), 0);
 
 		switch((*header).type) {
-			case PLANNER_COORD_HANDSHAKE_OK:
-				log_info(logger, "El COORDINADOR aceptó mi conexión");
-				fflush(stdout);
-				break;
 			case ESI_PLANNER_HANDSHAKE:
 				log_info(logger, "[INCOMING_CONNECTION_ESI]");
 				ESI * esi_registered = malloc(sizeof(ESI));
@@ -98,6 +94,10 @@ void * listening_thread(int server_socket) {
 				 *
 				*/
 			// END TESTING CODE
+			case PLANNER_COORD_HANDSHAKE_OK:
+				log_info(logger, "El COORDINADOR aceptó mi conexión");
+				fflush(stdout);
+				break;
 			case UNKNOWN_MSG_TYPE:
 				log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
 				break;

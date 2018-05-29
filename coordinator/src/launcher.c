@@ -79,6 +79,10 @@ void * listening_thread(int server_socket) {
 				log_info(logger, "[INCOMING_CONNECTION_PLANNER]");
 				send_only_header(client_socket, PLANNER_COORD_HANDSHAKE_OK);
 				break;
+			case ESI_COORD_HANDSHAKE:
+							log_info(logger, "[INCOMING_CONNECTION_ESI]");
+							send_only_header(client_socket, ESI_COORD_HANDSHAKE_OK);
+							break;
 			case INSTANCE_COORD_HANDSHAKE:
 				{
 					char * temp_str = malloc(header->size);

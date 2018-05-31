@@ -3,10 +3,7 @@
 
 t_log * logger;
 
-//typedef struct readThreadParams {
-//	int planner_socket;
-//	int coord_socket;
-//} ThreadParams;
+
 
 int main(int argc, char **argv){
     FILE * fp;
@@ -46,15 +43,14 @@ int main(int argc, char **argv){
 	// END PLANNER CONNECTION
 
 	// LISTENING THREAD
-	//	ThreadParams readParams;
-	//	readParams.coord_socket=coordinator_socket;
-	//	readParams.planner_socket=planner_socket;
+
+
+	pthread_t listening_thread_coordinator;
+	pthread_create(&listening_thread_coordinator, NULL, listening_thread, coordinator_socket);
 
 	pthread_t listening_thread_planner;
 	pthread_create(&listening_thread_planner, NULL, listening_thread, planner_socket);
 
-	pthread_t listening_thread_coordinator;
-	pthread_create(&listening_thread_coordinator, NULL, listening_thread, coordinator_socket);
 
 	// END LISTENING THREAD
 //

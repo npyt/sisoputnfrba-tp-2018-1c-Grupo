@@ -3,7 +3,7 @@
 
 t_log * logger;
 t_config * config;
-ESI * incoming_esi;
+
 t_queue * ready_queue;
 t_queue * blocked_queue;
 t_queue * finished_queue;
@@ -87,10 +87,15 @@ void * listening_thread(int server_socket) {
 		switch((*header).type) {
 			case ESI_PLANNER_HANDSHAKE:
 				log_info(logger, "[INCOMING_CONNECTION_ESI]");
+
+
 				ESI * esi_registered = malloc(sizeof(ESI));
+
 				register_esi(esi_registered);
 				sort_esi(esi_registered, planner_algorithm);
+				log_info(logger, "[%s_REGISTERED_IN_READY_QUEUE]", esi_registered->id);
 				send_only_header(client_socket, ESI_PLANNER_HANDSHAKE_OK);
+				fflush(stdout);
 				break;
 				/*case OPERATION_ERROR:
 				 *	esi_to_finish = queue_pop(running_queue);
@@ -135,8 +140,9 @@ void register_esi(ESI * incoming_esi){
 }
 
 void assign_esi_id(ESI * incoming_esi){
-	char * buffer_name = "ESI";
-	incoming_esi->id = strcat(buffer_name, atoi(esi_id_counter));
+	char * buffer_name[ESI_NAME_MAX_SIZE];
+	sprintf(buffer_name, "ESI%d", esi_id_counter);
+	strcpy(incoming_esi->id, buffer_name);
 	esi_id_counter++;
 }
 

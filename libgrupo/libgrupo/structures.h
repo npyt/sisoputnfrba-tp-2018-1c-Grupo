@@ -1,6 +1,9 @@
 #ifndef STRUCTURES
 #define STRUCTURES
 
+#define RESOURCE_KEY_MAX_SIZE 40
+#define ESI_NAME_MAX_SIZE 64
+
 typedef enum {
 	STATUS_BLOCKED,
 	STATUS_RUNNING,
@@ -10,7 +13,7 @@ typedef enum {
 } ESIStatus;
 
 typedef struct {
-	char* id;
+	char id[ESI_NAME_MAX_SIZE];
 	int program_counter;
 	ESIStatus status;
 	float last_estimate;
@@ -25,8 +28,7 @@ typedef enum {
 	HRRN
 } PlannerAlgorithm;
 
-#define RESOURCE_KEY_MAX_SIZE 40
-#define ESI_NAME_MAX_SIZE 64
+
 
 typedef struct {
 	char key[RESOURCE_KEY_MAX_SIZE];

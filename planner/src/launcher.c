@@ -11,6 +11,11 @@ t_queue * running_queue;
 PlannerAlgorithm planner_algorithm;
 int esi_id_counter;
 
+//typedef struct readThreadParams {
+//	int planner_socket;
+//	int coord_socket;
+//} ThreadParams;
+
 int main(){
 	// CONFIG
 	planner_algorithm = FIFO;
@@ -51,12 +56,13 @@ int main(){
 	}
 	log_info(logger, "Envío saludo al coordinador");
 	send_only_header(coordinator_socket, PLANNER_COORD_HANDSHAKE);
-
-
 	// END COORD CONNECTION
 
 	pthread_t listening_thread_id;
 	pthread_create(&listening_thread_id, NULL, listening_thread, server_socket);
+	//	ThreadParams readParams;
+	//	readParams.coord_socket=coordinator_socket;
+	//	readParams.planner_socket=planner_socket;
 
 	pthread_t planner_console_id;
 	pthread_create(&planner_console_id, NULL, planner_console_launcher, NULL);
@@ -129,7 +135,8 @@ void register_esi(ESI * incoming_esi){
 }
 
 void assign_esi_id(ESI * incoming_esi){
-	incoming_esi->id = esi_id_counter;
+	char * buffer_name = "ESI";
+	incoming_esi->id = strcat(buffer_name, atoi(esi_id_counter));
 	esi_id_counter++;
 }
 

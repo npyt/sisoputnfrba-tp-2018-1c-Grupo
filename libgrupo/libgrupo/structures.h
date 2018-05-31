@@ -10,7 +10,7 @@ typedef enum {
 } ESIStatus;
 
 typedef struct {
-	int id;
+	char* id;
 	int program_counter;
 	ESIStatus status;
 	float last_estimate;

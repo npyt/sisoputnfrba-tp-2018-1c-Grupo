@@ -21,6 +21,10 @@ typedef struct {
 	int idle_counter;
 } ESI;
 
+typedef struct {
+	char id[ESI_NAME_MAX_SIZE];
+} ESIRegistration;
+
 typedef enum {
 	FIFO,
 	SJF_SD,

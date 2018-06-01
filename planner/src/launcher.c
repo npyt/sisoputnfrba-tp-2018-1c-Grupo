@@ -88,13 +88,16 @@ void * listening_thread(int server_socket) {
 			case ESI_PLANNER_HANDSHAKE:
 				log_info(logger, "[INCOMING_CONNECTION_ESI]");
 
-
 				ESI * esi_registered = malloc(sizeof(ESI));
-
 				register_esi(esi_registered);
 				sort_esi(esi_registered, planner_algorithm);
 				log_info(logger, "[%s_REGISTERED_IN_READY_QUEUE]", esi_registered->id);
-				send_only_header(client_socket, ESI_PLANNER_HANDSHAKE_OK);
+				//send_only_header(client_socket, ESI_PLANNER_HANDSHAKE_OK);
+				ESIRegistration * esi_name = malloc(sizeof(ESIRegistration));
+				strcpy(esi_name->id, esi_registered->id);
+				send_content_with_header(client_socket, ESI_PLANNER_HANDSHAKE_OK, esi_name, sizeof(ESIRegistration));
+				free(esi_name);
+				//free(esi_registered);
 				fflush(stdout);
 				break;
 				/*case OPERATION_ERROR:

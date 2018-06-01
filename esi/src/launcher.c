@@ -120,6 +120,9 @@ void * listening_thread(int server_socket) {
 				break;
 			case ESI_PLANNER_HANDSHAKE_OK:
 				log_info(logger, "El PLANIFICADOR aceptó mi conexión");
+				ESIRegistration * esi_name = malloc(sizeof(ESIRegistration));
+				recv(server_socket, esi_name, sizeof(ESIRegistration), 0);
+				log_info(logger, "[REGISTERED_AS_%s]", esi_name->id);
 				// recv(planner_socket, header, sizeof(MessageHeader), 0) == -1)
 				// log_info(logger, "Mi ID de ESI es : %d", id_esi);
 				fflush(stdout);

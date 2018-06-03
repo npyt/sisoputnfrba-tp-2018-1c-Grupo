@@ -179,7 +179,7 @@ void * running_thread(){
 
 
 void register_esi_socket(int socket, ESI * esi){
-	ESIsocket * esi_socket = malloc(sizeof(ESIsocket));
+	ESIsocket * esi_socket = (ESIsocket *) malloc(sizeof(ESIsocket));
 	strcpy(esi_socket->id, esi->id);
 	esi_socket->esi_socket=socket;
 	list_add(esi_sockets_list, esi_socket);

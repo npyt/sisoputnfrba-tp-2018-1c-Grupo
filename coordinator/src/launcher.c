@@ -59,7 +59,6 @@ int main() {
 
 void * w_thread(int a) {
 	sleep(4);
-	log_info(logger, "INSTANCE %d", get_instance_index_to_use());
 }
 
 void * listening_thread(int server_socket) {
@@ -107,13 +106,24 @@ void * listening_thread(int server_socket) {
 				break;
 			case INSTRUCTION_DETAIL_TO_COODRINATOR:
 				log_info(logger, "[INCOMING_OPERATION_FROM_ESI]");
+
 				InstructionDetail * id = malloc(sizeof(InstructionDetail));
 				recv(client_socket, id, sizeof(InstructionDetail), 0);
 				if(id->operation == SET_OP) {
 					int * value_size;
 					recv(client_socket, value_size, sizeof(int), 0);
-					id->opt_value = malloc(sizeof(char) * (*value_size));
-					recv(client_socket, id->opt_value, sizeof(char) * (*value_size), 0);
+					id->opt_value = malloc(sizeof('a') * (*value_size));
+					recv(client_socket, id->opt_value, sizeof('a') * (*value_size), 0);
+				}
+
+				//TODO: Alternar entre los tipos de operación y realizar las comprobaciones necearias
+				switch(id->operation) {
+					case GET_OP:
+						break;
+					case SET_OP:
+						break;
+					case STORE_OP:
+						break;
 				}
 
 				log_info(logger, "[LOOKING_FOR_AVAILABLE_INSTANCE]");
@@ -124,6 +134,7 @@ void * listening_thread(int server_socket) {
 					send(target_instance->socket, strlen(id->opt_value), sizeof(int), 0);
 					send(target_instance->socket, id->opt_value, strlen(id->opt_value), 0);
 				}
+				log_info(logger, "[INSTRUCTION_SENT_TO_INSTANCE]");
 
 				break;
 			case UNKNOWN_MSG_TYPE:

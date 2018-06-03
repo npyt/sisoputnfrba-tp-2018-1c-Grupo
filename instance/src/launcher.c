@@ -13,6 +13,8 @@ char * INSTANCE_NAME;
 
 int circular_alg_last_entry;
 
+void * w_thread(int a);
+
 int main() {
 	logger = log_create("instance_logger.log", "INSTANCE", true, LOG_LEVEL_TRACE);
 	config = config_create("instance_config.cfg");
@@ -32,12 +34,20 @@ int main() {
 
 	pthread_t listening_thread_id;
 	pthread_create(&listening_thread_id, NULL, listening_thread, coordinator_socket);
+
+	pthread_t w_thread_id;
+	pthread_create(&w_thread_id, NULL, w_thread, coordinator_socket);
+
 	pthread_exit(NULL);
 
 	list_destroy(blocks_table);
 	list_destroy(diccio_table);
 
 	return 0;
+}
+
+void * w_thread(int a) {
+	sleep(4);
 }
 
 void * listening_thread(int coordinator_socket) {
@@ -78,6 +88,21 @@ void * listening_thread(int coordinator_socket) {
 				bl = list_get(blocks_table, de->entry_number);
 
 				dump_diccio_entry(0);*/
+
+				break;
+			case INSTRUCTION_DETAIL_TO_INSTANCE:
+				log_info(logger, "[INCOMING_OPERATION_FROM_COORDINATOR]");
+				InstructionDetail * id = malloc(sizeof(InstructionDetail));
+				recv(coordinator_socket, id, sizeof(InstructionDetail), 0);
+				if(id->operation == SET_OP) {
+					int * value_size;
+					recv(coordinator_socket, value_size, sizeof(int), 0);
+					id->opt_value = malloc(sizeof('a') * (*value_size));
+					recv(coordinator_socket, id->opt_value, sizeof('a') * (*value_size), 0);
+				}
+
+				process_instruction(id);
+
 				break;
 			case UNKNOWN_MSG_TYPE:
 				log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");

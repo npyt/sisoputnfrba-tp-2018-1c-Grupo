@@ -79,7 +79,6 @@ void * listening_thread(int server_socket) {
 				log_info(logger, "[INCOMING_CONNECTION_PLANNER]");
 				send_only_header(client_socket, PLANNER_COORD_HANDSHAKE_OK);
 				break;
-
 			case ESI_COORD_HANDSHAKE:
 				log_info(logger, "[INCOMING_CONNECTION_ESI]");
 				send_only_header(client_socket, ESI_COORD_HANDSHAKE_OK);
@@ -106,6 +105,27 @@ void * listening_thread(int server_socket) {
 					free(instance_config);
 				}
 				break;
+			case INSTRUCTION_DETAIL_TO_COODRINATOR:
+				log_info(logger, "[INCOMING_OPERATION_FROM_ESI]");
+				InstructionDetail * id = malloc(sizeof(InstructionDetail));
+				recv(client_socket, id, sizeof(InstructionDetail), 0);
+				if(id->operation == SET_OP) {
+					int * value_size;
+					recv(client_socket, value_size, sizeof(int), 0);
+					id->opt_value = malloc(sizeof(char) * (*value_size));
+					recv(client_socket, id->opt_value, sizeof(char) * (*value_size), 0);
+				}
+
+				log_info(logger, "[LOOKING_FOR_AVAILABLE_INSTANCE]");
+				InstanceRegistration * target_instance = list_get(instances, get_instance_index_to_use());
+				log_info(logger, "[INSTANCE_CHOSEN_TO_EXECUTE][%s]", target_instance->name);
+				send_content_with_header(target_instance->socket, INSTRUCTION_DETAIL_TO_INSTANCE, id, sizeof(InstructionDetail));
+				if(id->operation == SET_OP) {
+					send(target_instance->socket, strlen(id->opt_value), sizeof(int), 0);
+					send(target_instance->socket, id->opt_value, strlen(id->opt_value), 0);
+				}
+
+				break;
 			case UNKNOWN_MSG_TYPE:
 				log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
 				break;
@@ -122,7 +142,6 @@ int get_instance_index_to_use() {
 		log_error(logger, "[NO_INSTANCES_IN_SYSTEM]");
 		return -1;
 	} else {
-
 		switch (DISTRIBUTION_ALG) {
 			case LSU:
 				log_error(logger, "[LSU_ALG_NOT_YET_IMPLEMENTED]");

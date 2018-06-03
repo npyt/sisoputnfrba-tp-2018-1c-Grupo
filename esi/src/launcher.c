@@ -2,14 +2,14 @@
 #include <parsi/parser.h>
 
 t_log * logger;
-
-
+FILE * fp;
 
 int main(int argc, char **argv){
-    FILE * fp;
-    char * line = NULL;
-    size_t len = 0;
-    ssize_t read;
+	fp = fopen(argv[1], "r");
+//	if (fp == NULL){
+//		perror("Error al abrir el archivo: ");
+//		exit(EXIT_FAILURE);
+//	}
 
 
 	t_config * config;
@@ -53,46 +53,44 @@ int main(int argc, char **argv){
 
 
 	// END LISTENING THREAD
-//
-//    fp = fopen(argv[1], "r");
-//    if (fp == NULL){
-//        perror("Error al abrir el archivo: ");
-//        exit(EXIT_FAILURE);
-//    }
-//
-//    while ((read = getline(&line, &len, fp)) != -1) {
-//    	t_esi_operacion parsed = parse(line);
-//
-//        if(parsed.valido){
-//            switch(parsed.keyword){
-//                case GET:
-//                    printf("GET\tclave: <%s>\n", parsed.argumentos.GET.clave);
-//                    break;
-//                case SET:
-//                    printf("SET\tclave: <%s>\tvalor: <%s>\n", parsed.argumentos.SET.clave, parsed.argumentos.SET.valor);
-//                    break;
-//                case STORE:
-//                    printf("STORE\tclave: <%s>\n", parsed.argumentos.STORE.clave);
-//                    break;
-//
-//                default:
-//                    fprintf(stderr, "No pude interpretar <%s>\n", line);
-//                    exit(EXIT_FAILURE);
-//            }
-//
-//            destruir_operacion(parsed);
-//        } else {
-//            fprintf(stderr, "La linea <%s> no es valida\n", line);
-//            exit(EXIT_FAILURE);
-//        }
-//    }
-//
-//    fclose(fp);
-//    if (line)
-//        free(line);
 
 	pthread_exit(NULL);
     return EXIT_SUCCESS;
+}
+
+void parser(){
+    char * line = NULL;
+    size_t len = 0;
+    ssize_t read;
+	    while ((read = getline(&line, &len, fp)) != -1) {
+	    	t_esi_operacion parsed = parse(line);
+	        if(parsed.valido){
+	            switch(parsed.keyword){
+	                case GET:
+	                    printf("GET\tclave: <%s>\n", parsed.argumentos.GET.clave);
+	                    break;
+	                case SET:
+	                    printf("SET\tclave: <%s>\tvalor: <%s>\n", parsed.argumentos.SET.clave, parsed.argumentos.SET.valor);
+	                    break;
+	                case STORE:
+	                    printf("STORE\tclave: <%s>\n", parsed.argumentos.STORE.clave);
+	                    break;
+
+	                default:
+	                    fprintf(stderr, "No pude interpretar <%s>\n", line);
+	                    exit(EXIT_FAILURE);
+	            }
+
+	            destruir_operacion(parsed);
+	        } else {
+	            fprintf(stderr, "La linea <%s> no es valida\n", line);
+	            exit(EXIT_FAILURE);
+	        }
+	    }
+
+	    fclose(fp);
+	    if (line)
+	        free(line);
 }
 
 void * listening_thread(int server_socket) {
@@ -103,7 +101,7 @@ void * listening_thread(int server_socket) {
 		//Procesar el resto del mensaje dependiendo del tipo recibido
 		switch((*header).type) {
 			case PLANNER_ESI_RUN:
-				log_info(logger, "El PLANNER me pide parsear la primer línea");
+				log_info(logger, "[RUNNING_OK__PARSING_NEW_SENTENCE");
 				// mensaje = parsearlinea()
 				// send mensaje a coordinador
 				fflush(stdout);
@@ -120,11 +118,16 @@ void * listening_thread(int server_socket) {
 				break;
 			case ESI_PLANNER_HANDSHAKE_OK:
 				log_info(logger, "El PLANIFICADOR aceptó mi conexión");
-				ESIRegistration * esi_name = malloc(sizeof(ESIRegistration));
-				recv(server_socket, esi_name, sizeof(ESIRegistration), 0);
-				log_info(logger, "[REGISTERED_AS_%s]", esi_name->id);
-				// recv(planner_socket, header, sizeof(MessageHeader), 0) == -1)
-				// log_info(logger, "Mi ID de ESI es : %d", id_esi);
+
+				// ========== RECV STRUCTURE REGISTRATION VARIATION ==========
+				//ESIRegistration * esi_name = malloc(sizeof(ESIRegistration));
+				//recv(server_socket, esi_name, sizeof(ESIRegistration), 0);
+				//log_info(logger, "[REGISTERED_AS_%s]", esi_name->id);
+				// ========== END RECV STRUCTURE REGISTRATION VARIATION ==========
+
+				char * esi_buffer_name[ESI_NAME_MAX_SIZE];
+				recv(server_socket, esi_buffer_name, sizeof(ESI_NAME_MAX_SIZE), 0);
+				log_info(logger, "[REGISTERED_AS_%s]", esi_buffer_name);
 				fflush(stdout);
 				break;
 			case UNKNOWN_MSG_TYPE:

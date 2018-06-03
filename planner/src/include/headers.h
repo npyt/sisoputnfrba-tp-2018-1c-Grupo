@@ -8,8 +8,9 @@
 #include <commons/collections/queue.h>
 
 #include <string.h>
+#include <stdbool.h>
 
-void change_ESI_status(ESI *, ESIStatus);
+void change_esi_status(ESI *, ESIStatus);
 void create_queues();
 void define_planner_algorithm(t_config *, PlannerAlgorithm);
 void planner_console_launcher();
@@ -17,9 +18,15 @@ void * listening_thread(int);
 
 // TESTING CODE
 
+void run_order();
 void register_esi(ESI *);
 void assign_esi_id(ESI *);
 void sort_esi(ESI * , PlannerAlgorithm);
+
+void register_esi_socket(int, ESI *);
+float estimation(int, float);
+void sort_queues();
+void * running_thread();
 
 // END TESTING CODE
 

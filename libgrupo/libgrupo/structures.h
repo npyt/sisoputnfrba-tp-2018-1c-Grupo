@@ -25,6 +25,12 @@ typedef struct {
 	char id[ESI_NAME_MAX_SIZE];
 } ESIRegistration;
 
+typedef struct {
+	char id[ESI_NAME_MAX_SIZE];
+	int esi_socket;
+} ESIsocket;
+
+
 typedef enum {
 	FIFO,
 	SJF_SD,

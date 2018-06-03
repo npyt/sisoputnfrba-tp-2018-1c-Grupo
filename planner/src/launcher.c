@@ -8,13 +8,10 @@ t_queue * ready_queue;
 t_queue * blocked_queue;
 t_queue * finished_queue;
 t_queue * running_queue;
+t_list * esi_sockets_list;
 PlannerAlgorithm planner_algorithm;
 int esi_id_counter;
-
-//typedef struct readThreadParams {
-//	int planner_socket;
-//	int coord_socket;
-//} ThreadParams;
+int superflag = 0;
 
 int main(){
 	// CONFIG
@@ -60,12 +57,12 @@ int main(){
 
 	pthread_t listening_thread_id;
 	pthread_create(&listening_thread_id, NULL, listening_thread, server_socket);
-	//	ThreadParams readParams;
-	//	readParams.coord_socket=coordinator_socket;
-	//	readParams.planner_socket=planner_socket;
 
 	pthread_t planner_console_id;
 	pthread_create(&planner_console_id, NULL, planner_console_launcher, NULL);
+
+//	pthread_t running_thread_id;
+//	pthread_create(&running_thread_id, NULL, running_thread, NULL);
 
 
 	pthread_exit(NULL);
@@ -87,17 +84,24 @@ void * listening_thread(int server_socket) {
 		switch((*header).type) {
 			case ESI_PLANNER_HANDSHAKE:
 				log_info(logger, "[INCOMING_CONNECTION_ESI]");
-
 				ESI * esi_registered = malloc(sizeof(ESI));
 				register_esi(esi_registered);
-				sort_esi(esi_registered, planner_algorithm);
-				log_info(logger, "[%s_REGISTERED_IN_READY_QUEUE]", esi_registered->id);
+
+				// ========== SEND STRUCTURE REGISTRATION VARIATION ==========
 				//send_only_header(client_socket, ESI_PLANNER_HANDSHAKE_OK);
-				ESIRegistration * esi_name = malloc(sizeof(ESIRegistration));
-				strcpy(esi_name->id, esi_registered->id);
-				send_content_with_header(client_socket, ESI_PLANNER_HANDSHAKE_OK, esi_name, sizeof(ESIRegistration));
-				free(esi_name);
-				//free(esi_registered);
+				//ESIRegistration * esi_name = malloc(sizeof(ESIRegistration));
+				//strcpy(esi_name->id, esi_registered->id);
+				//send_content_with_header(client_socket, ESI_PLANNER_HANDSHAKE_OK, esi_name, sizeof(ESIRegistration));
+				//free(esi_name);
+				// ========== END SEND STRUCTURE REGISTRATION VARIATION ==========
+
+				char * esi_buffer_name[ESI_NAME_MAX_SIZE];
+				strcpy(esi_buffer_name, esi_registered->id);
+				//register_esi_socket(client_socket, esi_registered);
+				log_info(logger, "[%s_REGISTERED_IN_READY_QUEUE]", esi_registered->id);
+				send_content_with_header(client_socket, ESI_PLANNER_HANDSHAKE_OK, esi_buffer_name, sizeof(ESI_NAME_MAX_SIZE));
+
+				sort_esi(esi_registered, planner_algorithm);
 				fflush(stdout);
 				break;
 				/*case OPERATION_ERROR:
@@ -108,6 +112,20 @@ void * listening_thread(int server_socket) {
 				 *
 				*/
 			// END TESTING CODE
+			case ESI_EXECUTION_OK:
+				log_info(logger, "[ESI_EXECUTION_OK]");
+				ESI * esi_execution_ok = queue_peek(running_queue);
+				esi_execution_ok->last_estimate = estimation(esi_execution_ok->program_counter, esi_execution_ok->last_estimate);
+				esi_execution_ok->program_counter++;
+				sort_esi(esi_execution_ok, planner_algorithm);
+				// Continua ejecutando?
+				break;
+			case ESI_EXECUTION_FINISHED:
+				log_info(logger, "[ESI_EXECUTION_FINISHED]");
+				ESI * esi_exe_finished = queue_pop(running_queue);
+				change_esi_status(esi_exe_finished, STATUS_FINISHED);
+				queue_push(finished_queue, esi_exe_finished);
+				break;
 			case PLANNER_COORD_HANDSHAKE_OK:
 				log_info(logger, "El COORDINADOR aceptó mi conexión");
 				fflush(stdout);
@@ -123,18 +141,66 @@ void * listening_thread(int server_socket) {
 	}
 }
 
-/* // RUN ORDER
- * esi_to_run = queue_pop(ready_queue);
- * queue_push(running_queue, esi_to_run);
- * change_esi_status(esi_to_run, STATUS_RUNNING);
- * send_only_header(client_socket, PLANNER_ESI_RUN);
- * // END RUN ORDER
- */
+void * running_thread(){
+	while(1){
+		//sort_queues();
+		if(1) { //algun tipo de activación del while
+			ESI * esi_to_run = queue_pop(ready_queue);
+			queue_push(running_queue, esi_to_run);
+			change_esi_status(esi_to_run, STATUS_RUNNING);
+			log_info(logger, "[%s_NOW_RUNNING]", esi_to_run->id);
+			//Abajajo busco socket en lista y envio mensaje de ejecutar
+			//int esi_socket = search_esi_socket(esi_to_run);
+			//send_only_header(esi_socket, PLANNER_ESI_RUN);
+		}
+	}
+}
 
-// TESTING CODE
+//void sort_queues();
 
+
+//void sorting_thread(PlannerAlgorithm planner_algorithm){
+//	while(1){
+//		switch(planner_algorithm){
+//			 case FIFO:
+//				 queue_push(ready_queue, esi);
+//				 change_esi_status(esi, STATUS_READY);
+//				 break;
+//			 case SJF_SD:
+//				 break;
+//			 case SJF_CD:
+//				 break;
+//			 case HRRN:
+//				 break;
+//			 }
+//	}
+//}
+
+
+
+void register_esi_socket(int socket, ESI * esi){
+	ESIsocket * esi_socket = malloc(sizeof(ESIsocket));
+	strcpy(esi_socket->id, esi->id);
+	esi_socket->esi_socket=socket;
+	list_add(esi_sockets_list, esi_socket);
+}
+
+float estimation(int r_duration, float r_estimation) {
+	int alpha = config_get_int_value(config, "ALPHA");
+	float estimation = (alpha/100)*r_duration + (1-alpha/100)*r_estimation;
+	return estimation;
+}
+
+// ========== SEARCH CLOSURE BY ESI SOCKET ==========
+//void search_esi_socket(t_list *esi_sockets, ESI * esi) {
+//    int _search_esi_by_socket(ESI *p) {
+//        return strcmp(esi->id, p->id);
+//    }
+//	list_find(esi_sockets, _search_esi_by_socket);
+//}
+// ========== END SEARCH CLOSURE BY ESI SOCKET ==========
 void register_esi(ESI * incoming_esi){
-	change_ESI_status(incoming_esi, STATUS_NEW);
+	change_esi_status(incoming_esi, STATUS_NEW);
 	incoming_esi->last_estimate =config_get_int_value(config, "EST_ZERO");
 	incoming_esi->idle_counter = 0;
 	incoming_esi->program_counter = 0;
@@ -154,7 +220,7 @@ void sort_esi(ESI * esi, PlannerAlgorithm algorithm){
 	 switch(algorithm){
 	 case FIFO:
 		 queue_push(ready_queue, esi);
-		 change_ESI_status(esi, STATUS_READY);
+		 change_esi_status(esi, STATUS_READY);
 		 break;
 	 case SJF_SD:
 		 break;
@@ -185,7 +251,7 @@ void define_planner_algorithm(t_config * config, PlannerAlgorithm planner_algori
 	free(buffer_algorithm);
 }
 
-void change_ESI_status(ESI * esi, ESIStatus esi_status){
+void change_esi_status(ESI * esi, ESIStatus esi_status){
     esi->status = esi_status;
 }
 

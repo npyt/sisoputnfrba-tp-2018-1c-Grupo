@@ -23,7 +23,7 @@ void register_esi(ESI *);
 void assign_esi_id(ESI *);
 void sort_esi(ESI * , PlannerAlgorithm);
 
-void register_esi_socket(int, ESI *);
+void register_esi_socket(int, char *);
 float estimation(int, float);
 void sort_queues();
 void * running_thread();

@@ -86,6 +86,7 @@ void * listening_thread(int server_socket) {
 				log_info(logger, "[INCOMING_CONNECTION_ESI]");
 				ESI * esi_registered = malloc(sizeof(ESI));
 				register_esi(esi_registered);
+				register_esi_socket(client_socket, esi_registered->id);
 
 				// ========== SEND STRUCTURE REGISTRATION VARIATION ==========
 				//send_only_header(client_socket, ESI_PLANNER_HANDSHAKE_OK);
@@ -97,7 +98,6 @@ void * listening_thread(int server_socket) {
 
 				char * esi_buffer_name[ESI_NAME_MAX_SIZE];
 				strcpy(esi_buffer_name, esi_registered->id);
-				//register_esi_socket(client_socket, esi_registered);
 				log_info(logger, "[%s_REGISTERED_IN_READY_QUEUE]", esi_registered->id);
 				send_content_with_header(client_socket, ESI_PLANNER_HANDSHAKE_OK, esi_buffer_name, sizeof(ESI_NAME_MAX_SIZE));
 
@@ -178,9 +178,9 @@ void * running_thread(){
 
 
 
-void register_esi_socket(int socket, ESI * esi){
-	ESIsocket * esi_socket = (ESIsocket *) malloc(sizeof(ESIsocket));
-	strcpy(esi_socket->id, esi->id);
+void register_esi_socket(int socket, char * esi_id){
+	ESIsocket * esi_socket = malloc(sizeof(ESIsocket));
+	strcpy(esi_socket->id, esi_id);
 	esi_socket->esi_socket=socket;
 	list_add(esi_sockets_list, esi_socket);
 }
@@ -192,12 +192,12 @@ float estimation(int r_duration, float r_estimation) {
 }
 
 // ========== SEARCH CLOSURE BY ESI SOCKET ==========
-//void search_esi_socket(t_list *esi_sockets, ESI * esi) {
-//    int _search_esi_by_socket(ESI *p) {
-//        return strcmp(esi->id, p->id);
-//    }
-//	list_find(esi_sockets, _search_esi_by_socket);
-//}
+void search_esi_socket(t_list *esi_sockets, ESI * esi) {
+    int _search_esi_by_socket(ESI *p) {
+        return string_equals_ignore_case(esi->id, p->id);
+    }
+	list_find(esi_sockets, (void*)_search_esi_by_socket);
+}
 // ========== END SEARCH CLOSURE BY ESI SOCKET ==========
 void register_esi(ESI * incoming_esi){
 	change_esi_status(incoming_esi, STATUS_NEW);
@@ -260,5 +260,6 @@ void create_queues(){
 	blocked_queue = queue_create();
 	finished_queue = queue_create();
 	running_queue = queue_create();
+	esi_sockets_list = list_create();
 }
 

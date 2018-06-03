@@ -108,8 +108,9 @@ typedef struct {
 
 typedef struct {
 	char ESIName[ESI_NAME_MAX_SIZE];
+	char key[RESOURCE_KEY_MAX_SIZE];
 	InstructionOperation operation;
-} CoodinatorPlannerCheck;
+} CoordinatorPlannerCheck;
 
 
 

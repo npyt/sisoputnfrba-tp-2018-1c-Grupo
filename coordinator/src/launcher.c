@@ -9,6 +9,8 @@ t_list * instances = NULL;
 DistributionAlgorithm DISTRIBUTION_ALG;
 int eq_load_alg_last_used_inst = -1;
 
+int planner_socket = -1;
+
 int main() {
 	printf("COORDINATOR");
 
@@ -77,6 +79,7 @@ void * listening_thread(int server_socket) {
 			case PLANNER_COORD_HANDSHAKE:
 				log_info(logger, "[INCOMING_CONNECTION_PLANNER]");
 				send_only_header(client_socket, PLANNER_COORD_HANDSHAKE_OK);
+				planner_socket = client_socket;
 				break;
 			case ESI_COORD_HANDSHAKE:
 				log_info(logger, "[INCOMING_CONNECTION_ESI]");
@@ -116,25 +119,43 @@ void * listening_thread(int server_socket) {
 					recv(client_socket, id->opt_value, sizeof('a') * (*value_size), 0);
 				}
 
-				//TODO: Alternar entre los tipos de operación y realizar las comprobaciones necearias
+				CoordinatorPlannerCheck * check = malloc(sizeof(CoordinatorPlannerCheck));
+				strcpy(check->ESIName, id->ESIName);
+				strcpy(check->key, id->key);
+				check->operation = id->operation;
+
+				log_info(logger, "[CHECKING_OPERATION_PERMISSIONS]");
 				switch(id->operation) {
 					case GET_OP:
+						send_content_with_header(planner_socket, CAN_ESI_GET_KEY, check, sizeof(CoordinatorPlannerCheck));
 						break;
 					case SET_OP:
+						send_content_with_header(planner_socket, CAN_ESI_SET_KEY, check, sizeof(CoordinatorPlannerCheck));
 						break;
 					case STORE_OP:
+						send_content_with_header(planner_socket, CAN_ESI_STORE_KEY, check, sizeof(CoordinatorPlannerCheck));
 						break;
 				}
 
-				log_info(logger, "[LOOKING_FOR_AVAILABLE_INSTANCE]");
-				InstanceRegistration * target_instance = list_get(instances, get_instance_index_to_use());
-				log_info(logger, "[INSTANCE_CHOSEN_TO_EXECUTE][%s]", target_instance->name);
-				send_content_with_header(target_instance->socket, INSTRUCTION_DETAIL_TO_INSTANCE, id, sizeof(InstructionDetail));
-				if(id->operation == SET_OP) {
-					send(target_instance->socket, strlen(id->opt_value), sizeof(int), 0);
-					send(target_instance->socket, id->opt_value, strlen(id->opt_value), 0);
+				MessageHeader * header_check = malloc(sizeof(MessageHeader));
+				recv(client_socket, header_check, sizeof(MessageHeader), 0);
+
+				switch(header_check->type) {
+					case PLANNER_COORDINATOR_OP_OK:
+						log_info(logger, "[PLANNER_OK][LOOKING_FOR_AVAILABLE_INSTANCE]");
+						InstanceRegistration * target_instance = list_get(instances, get_instance_index_to_use());
+						log_info(logger, "[INSTANCE_CHOSEN_TO_EXECUTE][%s]", target_instance->name);
+						send_content_with_header(target_instance->socket, INSTRUCTION_DETAIL_TO_INSTANCE, id, sizeof(InstructionDetail));
+						if(id->operation == SET_OP) {
+							send(target_instance->socket, strlen(id->opt_value), sizeof(int), 0);
+							send(target_instance->socket, id->opt_value, strlen(id->opt_value), 0);
+						}
+						log_info(logger, "[INSTRUCTION_SENT_TO_INSTANCE]");
+						break;
+					case PLANNER_COORDINATOR_OP_FAILED:
+						log_error(logger, "[PLANNER_DIDNT_AUTHORIZE_OPERATION]");
+						break;
 				}
-				log_info(logger, "[INSTRUCTION_SENT_TO_INSTANCE]");
 
 				break;
 			case UNKNOWN_MSG_TYPE:

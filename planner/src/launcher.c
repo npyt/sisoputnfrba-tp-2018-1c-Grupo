@@ -4,10 +4,10 @@
 t_log * logger;
 t_config * config;
 
-t_queue * ready_queue;
-t_queue * blocked_queue;
-t_queue * finished_queue;
-t_queue * running_queue;
+t_list * ready_queue;
+t_list * blocked_queue;
+t_list * finished_queue;
+t_list * running_queue;
 t_list * esi_sockets_list;
 PlannerAlgorithm planner_algorithm;
 int esi_id_counter;
@@ -15,7 +15,6 @@ int superflag = 0;
 
 int main(){
 	// CONFIG
-	planner_algorithm = FIFO;
 	logger = log_create("planner_logger.log", "PLANNER", true, LOG_LEVEL_TRACE);
 	config = config_create("planner_config.cfg");
 	esi_id_counter = config_get_int_value(config, "INIT_ID");
@@ -61,8 +60,8 @@ int main(){
 	pthread_t planner_console_id;
 	pthread_create(&planner_console_id, NULL, planner_console_launcher, NULL);
 
-//	pthread_t running_thread_id;
-//	pthread_create(&running_thread_id, NULL, running_thread, NULL);
+	pthread_t running_thread_id;
+	pthread_create(&running_thread_id, NULL, running_thread, NULL);
 
 
 	pthread_exit(NULL);
@@ -98,10 +97,10 @@ void * listening_thread(int server_socket) {
 
 				char * esi_buffer_name[ESI_NAME_MAX_SIZE];
 				strcpy(esi_buffer_name, esi_registered->id);
+				sort_esi(esi_registered, planner_algorithm);
 				log_info(logger, "[%s_REGISTERED_IN_READY_QUEUE]", esi_registered->id);
 				send_content_with_header(client_socket, ESI_PLANNER_HANDSHAKE_OK, esi_buffer_name, sizeof(ESI_NAME_MAX_SIZE));
 
-				sort_esi(esi_registered, planner_algorithm);
 				fflush(stdout);
 				break;
 				/*case OPERATION_ERROR:
@@ -112,19 +111,20 @@ void * listening_thread(int server_socket) {
 				 *
 				*/
 			// END TESTING CODE
-			case ESI_EXECUTION_OK:
+			case ESI_EXECUTION_LINE_OK:
 				log_info(logger, "[ESI_EXECUTION_OK]");
-				ESI * esi_execution_ok = queue_peek(running_queue);
+				ESI * esi_execution_ok = list_get(running_queue, 0);
 				esi_execution_ok->last_estimate = estimation(esi_execution_ok->program_counter, esi_execution_ok->last_estimate);
 				esi_execution_ok->program_counter++;
-				sort_esi(esi_execution_ok, planner_algorithm);
 				// Continua ejecutando?
+				sort_esi(esi_execution_ok, planner_algorithm);
 				break;
 			case ESI_EXECUTION_FINISHED:
 				log_info(logger, "[ESI_EXECUTION_FINISHED]");
-				ESI * esi_exe_finished = queue_pop(running_queue);
+				ESI * esi_exe_finished = list_get(running_queue, 0);
+				list_remove(running_queue, 0);
 				change_esi_status(esi_exe_finished, STATUS_FINISHED);
-				queue_push(finished_queue, esi_exe_finished);
+				list_add(finished_queue,esi_exe_finished);
 				break;
 			case PLANNER_COORD_HANDSHAKE_OK:
 				log_info(logger, "El COORDINADOR aceptó mi conexión");
@@ -144,14 +144,13 @@ void * listening_thread(int server_socket) {
 void * running_thread(){
 	while(1){
 		//sort_queues();
-		if(1) { //algun tipo de activación del while
-			ESI * esi_to_run = queue_pop(ready_queue);
-			queue_push(running_queue, esi_to_run);
+		if(!list_is_empty(ready_queue) && list_is_empty(running_queue)) { // Buscar otro tipo de activación del while
+			ESI * esi_to_run = list_get(ready_queue, 0);
+			list_add_in_index(running_queue, 0, esi_to_run);
 			change_esi_status(esi_to_run, STATUS_RUNNING);
 			log_info(logger, "[%s_NOW_RUNNING]", esi_to_run->id);
-			//Abajajo busco socket en lista y envio mensaje de ejecutar
-			//int esi_socket = search_esi_socket(esi_to_run);
-			//send_only_header(esi_socket, PLANNER_ESI_RUN);
+			int esi_socket = search_esi_socket(esi_sockets_list, esi_to_run);
+			send_only_header(esi_socket, PLANNER_ESI_RUN);
 		}
 	}
 }
@@ -159,22 +158,20 @@ void * running_thread(){
 //void sort_queues();
 
 
-//void sorting_thread(PlannerAlgorithm planner_algorithm){
-//	while(1){
-//		switch(planner_algorithm){
-//			 case FIFO:
-//				 queue_push(ready_queue, esi);
-//				 change_esi_status(esi, STATUS_READY);
-//				 break;
-//			 case SJF_SD:
-//				 break;
-//			 case SJF_CD:
-//				 break;
-//			 case HRRN:
-//				 break;
-//			 }
-//	}
-//}
+void sorting_queues(){
+	while(1){
+		switch(planner_algorithm){
+			 case FIFO:
+				 break;
+			 case SJF_SD:
+				 break;
+			 case SJF_CD:
+				 break;
+			 case HRRN:
+				 break;
+			 }
+	}
+}
 
 
 
@@ -192,11 +189,12 @@ float estimation(int r_duration, float r_estimation) {
 }
 
 // ========== SEARCH CLOSURE BY ESI SOCKET ==========
-void search_esi_socket(t_list *esi_sockets, ESI * esi) {
-    int _search_esi_by_socket(ESI *p) {
+int search_esi_socket(t_list *esi_sockets, ESI * esi) {
+    int _search_esi_by_socket(ESIsocket *p) {
         return string_equals_ignore_case(esi->id, p->id);
     }
-	list_find(esi_sockets, (void*)_search_esi_by_socket);
+	ESIsocket * esi_socket_found = list_find(esi_sockets, (void*)_search_esi_by_socket);
+	return esi_socket_found->esi_socket;
 }
 // ========== END SEARCH CLOSURE BY ESI SOCKET ==========
 void register_esi(ESI * incoming_esi){
@@ -219,7 +217,7 @@ void assign_esi_id(ESI * incoming_esi){
 void sort_esi(ESI * esi, PlannerAlgorithm algorithm){
 	 switch(algorithm){
 	 case FIFO:
-		 queue_push(ready_queue, esi);
+		 list_add_in_index(ready_queue, 0, esi);
 		 change_esi_status(esi, STATUS_READY);
 		 break;
 	 case SJF_SD:
@@ -256,10 +254,10 @@ void change_esi_status(ESI * esi, ESIStatus esi_status){
 }
 
 void create_queues(){
-	ready_queue = queue_create();
-	blocked_queue = queue_create();
-	finished_queue = queue_create();
-	running_queue = queue_create();
+	ready_queue = list_create();
+	blocked_queue = list_create();
+	finished_queue = list_create();
+	running_queue = list_create();
 	esi_sockets_list = list_create();
 }
 

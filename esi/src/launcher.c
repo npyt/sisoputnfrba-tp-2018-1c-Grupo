@@ -1,4 +1,4 @@
-#include "libgrupo/headers.h"
+#include <libgrupo/headers.h>
 #include <parsi/parser.h>
 
 t_log * logger;
@@ -54,27 +54,44 @@ int main(int argc, char **argv){
 
 	// END LISTENING THREAD
 
+	fclose(fp);
 	pthread_exit(NULL);
     return EXIT_SUCCESS;
 }
 
-void parser(){
+void parser(int coordinator_socket){
     char * line = NULL;
     size_t len = 0;
     ssize_t read;
-	    while ((read = getline(&line, &len, fp)) != -1) {
-	    	t_esi_operacion parsed = parse(line);
-	        if(parsed.valido){
-	            switch(parsed.keyword){
-	                case GET:
-	                    printf("GET\tclave: <%s>\n", parsed.argumentos.GET.clave);
-	                    break;
-	                case SET:
-	                    printf("SET\tclave: <%s>\tvalor: <%s>\n", parsed.argumentos.SET.clave, parsed.argumentos.SET.valor);
-	                    break;
-	                case STORE:
-	                    printf("STORE\tclave: <%s>\n", parsed.argumentos.STORE.clave);
-	                    break;
+    InstructionDetail * id = malloc(sizeof(InstructionDetail));
+    if((read = getline(&line, &len, fp)) != -1) {
+		t_esi_operacion parsed = parse(line);
+		if(parsed.valido){
+
+			id->operation = parsed.keyword;
+
+			switch(parsed.keyword){
+				case GET:
+					strcpy(id->key, parsed.argumentos.GET.clave);
+					send_content_with_header(coordinator_socket,
+							INSTRUCTION_DETAIL_TO_COORDINATOR, id,
+							sizeof(InstructionDetail));
+					break;
+				case SET:
+					strcpy(id->key, parsed.argumentos.SET.clave);
+					strcpy(id->opt_value, parsed.argumentos.SET.valor);
+					send_content_with_header(coordinator_socket,
+							INSTRUCTION_DETAIL_TO_COORDINATOR, id,
+							sizeof(InstructionDetail));
+					send(coordinator_socket, strlen(id->opt_value), sizeof(int), 0);
+					send(coordinator_socket, id->opt_value, strlen(id->opt_value), 0);
+					break;
+				case STORE:
+					strcpy(id->key, parsed.argumentos.STORE.clave);
+					send_content_with_header(coordinator_socket,
+							INSTRUCTION_DETAIL_TO_COORDINATOR, id,
+							sizeof(InstructionDetail));
+					break;
 
 	                default:
 	                    fprintf(stderr, "No pude interpretar <%s>\n", line);
@@ -86,9 +103,10 @@ void parser(){
 	            fprintf(stderr, "La linea <%s> no es valida\n", line);
 	            exit(EXIT_FAILURE);
 	        }
+	    } else {
+	    	//no hay mas sentencias (EOF)
 	    }
 
-	    fclose(fp);
 	    if (line)
 	        free(line);
 }
@@ -102,8 +120,7 @@ void * listening_thread(int server_socket) {
 		switch((*header).type) {
 			case PLANNER_ESI_RUN:
 				log_info(logger, "[RUNNING_OK__PARSING_NEW_SENTENCE");
-				// mensaje = parsearlinea()
-				// send mensaje a coordinador
+				parser(server_socket);
 				fflush(stdout);
 				break;
 			case OPERATION_ERROR:

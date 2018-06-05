@@ -97,27 +97,18 @@ void * listening_thread(int server_socket) {
 
 				char * esi_buffer_name[ESI_NAME_MAX_SIZE];
 				strcpy(esi_buffer_name, esi_registered->id);
-				sort_esi(esi_registered, planner_algorithm);
+				list_add_in_index(ready_queue, 0, esi_registered);
+				change_esi_status(esi_registered, STATUS_READY);
 				log_info(logger, "[%s_REGISTERED_IN_READY_QUEUE]", esi_registered->id);
 				send_content_with_header(client_socket, ESI_PLANNER_HANDSHAKE_OK, esi_buffer_name, sizeof(ESI_NAME_MAX_SIZE));
 
 				fflush(stdout);
 				break;
-				/*case OPERATION_ERROR:
-				 *	esi_to_finish = queue_pop(running_queue);
-				 *	queue_push(finished_queue, esi_to_finish);
-				 *	change_esi_status(esi_to_finish, STATUS_FINISHED);
-				 *	ejecutar el siguiente
-				 *
-				*/
-			// END TESTING CODE
 			case ESI_EXECUTION_LINE_OK:
 				log_info(logger, "[ESI_EXECUTION_OK]");
 				ESI * esi_execution_ok = list_get(running_queue, 0);
-				esi_execution_ok->last_estimate = estimation(esi_execution_ok->program_counter, esi_execution_ok->last_estimate);
+				esi_execution_ok->last_estimate--;
 				esi_execution_ok->program_counter++;
-				// Continua ejecutando?
-				sort_esi(esi_execution_ok, planner_algorithm);
 				break;
 			case ESI_EXECUTION_FINISHED:
 				log_info(logger, "[ESI_EXECUTION_FINISHED]");
@@ -236,24 +227,6 @@ void assign_esi_id(ESI * incoming_esi){
 	strcpy(incoming_esi->id, buffer_name);
 	esi_id_counter++;
 }
-
-
-void sort_esi(ESI * esi, PlannerAlgorithm algorithm){
-	 switch(algorithm){
-	 case FIFO:
-		 list_add_in_index(ready_queue, 0, esi);
-		 change_esi_status(esi, STATUS_READY);
-		 break;
-	 case SJF_SD:
-		 break;
-	 case SJF_CD:
-		 break;
-	 case HRRN:
-		 break;
-	 }
-}
-// END TESTING CODE
-
 
 void define_planner_algorithm(t_config * config, PlannerAlgorithm planner_algorithm){
 	char * buffer_algorithm = config_get_string_value(config, "PLAN_ALG");

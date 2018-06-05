@@ -125,8 +125,8 @@ void * listening_thread(int server_socket) {
 				break;
 			case OPERATION_ERROR:
 				log_info(logger, "Me informan de ERROR");
-				// mensaje a planificador (OPERATION_ERROR)
-				// terminar ejecución
+				send_only_header(server_socket, ESI_EXECUTION_FINISHED);
+				// Terminar ejecución
 				fflush(stdout);
 				break;
 			case ESI_COORD_HANDSHAKE_OK:

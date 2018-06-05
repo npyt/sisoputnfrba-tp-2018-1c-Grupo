@@ -26,6 +26,7 @@ void sort_esi(ESI * , PlannerAlgorithm);
 void register_esi_socket(int, char *);
 float estimation(int, float);
 void sort_queues();
+void sort_by_burst();
 void * running_thread();
 
 // END TESTING CODE

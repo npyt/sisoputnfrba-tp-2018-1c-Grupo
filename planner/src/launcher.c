@@ -121,8 +121,7 @@ void * listening_thread(int server_socket) {
 				break;
 			case ESI_EXECUTION_FINISHED:
 				log_info(logger, "[ESI_EXECUTION_FINISHED]");
-				ESI * esi_exe_finished = list_get(running_queue, 0);
-				list_remove(running_queue, 0);
+				ESI * esi_exe_finished = list_remove(running_queue, 0);
 				change_esi_status(esi_exe_finished, STATUS_FINISHED);
 				list_add(finished_queue,esi_exe_finished);
 				break;
@@ -143,9 +142,9 @@ void * listening_thread(int server_socket) {
 
 void * running_thread(){
 	while(1){
-		//sort_queues();
+		sorting_queues();
 		if(!list_is_empty(ready_queue) && list_is_empty(running_queue)) { // Buscar otro tipo de activación del while
-			ESI * esi_to_run = list_get(ready_queue, 0);
+			ESI * esi_to_run = list_remove(ready_queue, 0);
 			list_add_in_index(running_queue, 0, esi_to_run);
 			change_esi_status(esi_to_run, STATUS_RUNNING);
 			log_info(logger, "[%s_NOW_RUNNING]", esi_to_run->id);
@@ -158,19 +157,43 @@ void * running_thread(){
 //void sort_queues();
 
 
+// ========== SORT BY SENTENCE ESTIMATION ==========
+void sort_by_burst() {
+    int _sort_burst_esi(ESI *one, ESI *two) {
+        return (one->last_estimate<two->last_estimate);
+    }
+    list_sort(ready_queue, (void*)_sort_burst_esi);
+}
+// ========== END SORT BY SENTENCE ESTIMATION ==========
+
 void sorting_queues(){
-	while(1){
-		switch(planner_algorithm){
-			 case FIFO:
-				 break;
-			 case SJF_SD:
-				 break;
-			 case SJF_CD:
-				 break;
-			 case HRRN:
-				 break;
+	 ESI * temp_esi_running = malloc(sizeof(ESI));
+	 ESI * temp_esi_ready = malloc(sizeof(ESI));
+
+	switch(planner_algorithm){
+		 case FIFO:
+			 break;
+		 case SJF_SD:
+			 if(list_size(ready_queue)>1){
+				 sort_by_burst();
 			 }
-	}
+			 break;
+		 case SJF_CD:
+			 temp_esi_running = list_get(running_queue, 0);
+			 temp_esi_ready = list_get(ready_queue, 0);
+			 sort_by_burst();
+			 if(temp_esi_running->last_estimate>temp_esi_ready->last_estimate){
+				 list_add(ready_queue,temp_esi_running);
+				 list_remove(running_queue, 0);
+				 sort_by_burst();
+			 }
+			 break;
+		 case HRRN:
+			 break;
+	 }
+
+	free(temp_esi_running);
+	free(temp_esi_ready);
 }
 
 
@@ -197,6 +220,7 @@ int search_esi_socket(t_list *esi_sockets, ESI * esi) {
 	return esi_socket_found->esi_socket;
 }
 // ========== END SEARCH CLOSURE BY ESI SOCKET ==========
+
 void register_esi(ESI * incoming_esi){
 	change_esi_status(incoming_esi, STATUS_NEW);
 	incoming_esi->last_estimate =config_get_int_value(config, "EST_ZERO");

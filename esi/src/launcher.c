@@ -120,6 +120,7 @@ void parser(int coordinator_socket){
 		//EOF
 		send_only_header(planner_socket, ESI_EXECUTION_FINISHED);
 	    if (line) free(line);
+	    free(id);
 		exit(EXIT_SUCCESS);
 }
 
@@ -151,6 +152,7 @@ void * coordinator_listening_thread() {
 				send_only_header(coordinator_socket, UNKNOWN_MSG_TYPE);
 				break;
 		}
+		free(header);
 	}
 }
 
@@ -188,5 +190,6 @@ void * planner_listening_thread() {
 				send_only_header(coordinator_socket, UNKNOWN_MSG_TYPE);
 				break;
 		}
+		free(header);
 	}
 }

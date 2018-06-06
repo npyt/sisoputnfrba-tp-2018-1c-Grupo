@@ -18,5 +18,7 @@
 #include <commons/collections/list.h>
 
 void * listening_thread(int server_socket);
+void * coordinator_listening_thread(void);
+void * planner_listening_thread(void);
 
 #endif /* SRC_HEADERS_H_ */

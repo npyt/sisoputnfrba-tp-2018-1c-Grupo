@@ -109,7 +109,6 @@ void * listening_threads(SocketToListen * socket_to_listen) {
 					MessageHeader * header = malloc(sizeof(MessageHeader));
 					if(recv(i, header, sizeof(MessageHeader), 0)){
 						if(FD_ISSET(i, &master)){
-							CoordinatorPlannerCheck * check = malloc(sizeof(CoordinatorPlannerCheck));
 							switch((*header).type) {
 								case ESI_PLANNER_HANDSHAKE:
 									log_info(logger, "[INCOMING_CONNECTION_ESI]");
@@ -155,36 +154,65 @@ void * listening_threads(SocketToListen * socket_to_listen) {
 									break;
 								//GUARDA
 								case CAN_ESI_GET_KEY:
+									log_info(logger, "[COORDINATOR_ASKING_FOR_PERMISSION]");
 
-									recv(coordinator_socket, check, sizeof(MessageHeader), 0);
-									if(check_Key_availability(check->key)){
-										send_only_header(i, PLANNER_COORDINATOR_OP_OK);
-									}else{
-										block_esi(check->ESIName);//hacer
+									{
+										CoordinatorPlannerCheck * check = malloc(sizeof(CoordinatorPlannerCheck));
+										recv(coordinator_socket, check, sizeof(CoordinatorPlannerCheck), 0);
+
+										if(check_Key_availability(check->key)){
+											log_info(logger, "[ALLOW_OP]");
+											send_only_header(i, PLANNER_COORDINATOR_OP_OK);
+										}else{
+											log_info(logger, "[DENY_OP]");
+											send_only_header(i, PLANNER_COORDINATOR_OP_OK);
+											block_esi(check->ESIName);//hacer
+										}
+										free(check);
 									}
+
 									break;
 								case CAN_ESI_SET_KEY:
-									recv(i, check, sizeof(MessageHeader), 0);
-									if(check_Key_taken(check->key,check->ESIName)){
-										send_only_header(i, PLANNER_COORDINATOR_OP_OK);
-									}else{
-										send_only_header(i, PLANNER_COORDINATOR_OP_FAILED);
+									log_info(logger, "[COORDINATOR_ASKING_FOR_PERMISSION]");
+
+									{
+										CoordinatorPlannerCheck * check = malloc(sizeof(CoordinatorPlannerCheck));
+										recv(coordinator_socket, check, sizeof(CoordinatorPlannerCheck), 0);
+
+										if(check_Key_taken(check->key,check->ESIName)){
+											log_info(logger, "[ALLOW_OP]");
+											send_only_header(i, PLANNER_COORDINATOR_OP_OK);
+										}else{
+											log_info(logger, "[DENY_OP]");
+											send_only_header(i, PLANNER_COORDINATOR_OP_OK);
+										}
+										free(check);
 									}
+
 									break;
 								case CAN_ESI_STORE_KEY:
-									recv(i, check, sizeof(MessageHeader), 0);
-									if(check_Key_taken(check->key,check->ESIName)){
-										send_only_header(i, PLANNER_COORDINATOR_OP_OK);
+									log_info(logger, "[COORDINATOR_ASKING_FOR_PERMISSION]");
+
+									{
+										CoordinatorPlannerCheck * check = malloc(sizeof(CoordinatorPlannerCheck));
+										recv(coordinator_socket, check, sizeof(CoordinatorPlannerCheck), 0);
+
+										if(check_Key_taken(check->key,check->ESIName)){
+											log_info(logger, "[ALLOW_OP]");
+											send_only_header(i, PLANNER_COORDINATOR_OP_OK);
 										}else{
-										send_only_header(i, PLANNER_COORDINATOR_OP_FAILED);
+											log_info(logger, "[DENY_OP]");
+											send_only_header(i, PLANNER_COORDINATOR_OP_OK);
 										}
+										free(check);
+									}
+
 									break;
 								default:
 									log_error(logger, "[UNKOWN_MESSAGE_RECIEVED]");
 									send_only_header(i, UNKNOWN_MSG_TYPE);
 									break;
 							}
-							free(check);
 						}
 					}else{
 						log_info(logger, "[ERROR_RECV_LOST_SOCKET_%d]", i);

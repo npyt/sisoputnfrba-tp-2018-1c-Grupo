@@ -11,6 +11,8 @@ int eq_load_alg_last_used_inst = -1;
 
 int planner_socket = -1;
 
+void * thread_listen_esi(int esi_socket);
+
 int main() {
 	printf("COORDINATOR");
 
@@ -49,18 +51,11 @@ int main() {
 	pthread_t listening_thread_id;
 	pthread_create(&listening_thread_id, NULL, listening_thread, server_socket);
 
-	pthread_t w_thread_id;
-	pthread_create(&w_thread_id, NULL, w_thread, server_socket);
-
 	pthread_exit(NULL);
 	list_destroy(instances);
 	close(server_socket);
 
 	return 0;
-}
-
-void * w_thread(int a) {
-	sleep(4); //TEST
 }
 
 void * listening_thread(int server_socket) {
@@ -83,7 +78,11 @@ void * listening_thread(int server_socket) {
 				break;
 			case ESI_COORD_HANDSHAKE:
 				log_info(logger, "[INCOMING_CONNECTION_ESI]");
-				send_only_header(client_socket, ESI_COORD_HANDSHAKE_OK);
+
+				pthread_t e_thread_id;
+				pthread_create(&e_thread_id, NULL, thread_listen_esi, client_socket);
+				pthread_exit(NULL);
+
 				break;
 			case INSTANCE_COORD_HANDSHAKE:
 				{
@@ -108,94 +107,6 @@ void * listening_thread(int server_socket) {
 					free(instance_config);
 				}
 				break;
-			case INSTRUCTION_DETAIL_TO_COODRINATOR:
-				log_info(logger, "[INCOMING_OPERATION_FROM_ESI]");
-
-				InstructionDetail * id = malloc(sizeof(InstructionDetail));
-				recv(client_socket, id, sizeof(InstructionDetail), 0);
-				if(id->operation == SET_OP) {
-					int * value_size;
-					recv(client_socket, value_size, sizeof(int), 0);
-					id->opt_value = malloc(sizeof('a') * (*value_size));
-					recv(client_socket, id->opt_value, sizeof('a') * (*value_size), 0);
-					free(value_size);
-				}
-
-				CoordinatorPlannerCheck * check = malloc(sizeof(CoordinatorPlannerCheck));
-				strcpy(check->ESIName, id->ESIName);
-				strcpy(check->key, id->key);
-				check->operation = id->operation;
-
-				log_info(logger, "[CHECKING_OPERATION_PERMISSIONS]");
-				switch(id->operation) {
-					case GET_OP:
-						send_content_with_header(planner_socket, CAN_ESI_GET_KEY, check, sizeof(CoordinatorPlannerCheck));
-						break;
-					case SET_OP:
-						send_content_with_header(planner_socket, CAN_ESI_SET_KEY, check, sizeof(CoordinatorPlannerCheck));
-						break;
-					case STORE_OP:
-						send_content_with_header(planner_socket, CAN_ESI_STORE_KEY, check, sizeof(CoordinatorPlannerCheck));
-						break;
-				}
-
-				free(check);
-
-				MessageHeader * header_check = malloc(sizeof(MessageHeader));
-				recv(planner_socket, header_check, sizeof(MessageHeader), 0);
-
-				switch(header_check->type) {
-					case PLANNER_COORDINATOR_OP_OK:
-						log_info(logger, "[PLANNER_OK][LOOKING_FOR_AVAILABLE_INSTANCE]");
-						InstanceRegistration * target_instance = list_get(instances, get_instance_index_to_use());
-						log_info(logger, "[INSTANCE_CHOSEN_TO_EXECUTE][%s]", target_instance->name);
-						send_content_with_header(target_instance->socket, INSTRUCTION_DETAIL_TO_INSTANCE, id, sizeof(InstructionDetail));
-						if(id->operation == SET_OP) {
-							send(target_instance->socket, strlen(id->opt_value), sizeof(int), 0);
-							send(target_instance->socket, id->opt_value, strlen(id->opt_value), 0);
-						}
-						log_info(logger, "[INSTRUCTION_SENT_TO_INSTANCE][AWAITING_CONFIRMATION]");
-
-						header_check = malloc(sizeof(MessageHeader));
-						recv(target_instance->socket, header_check, sizeof(MessageHeader), 0);
-						switch((header_check)->type) {
-							case INSTANCE_REPORTS_SUCCESSFUL_OP:
-								log_info(logger, "[OPERATION_SUCCESSFUL]");
-								ResourceAllocation * allocation_change = malloc(sizeof(ResourceAllocation));
-
-								strcpy(allocation_change->ESIName, id->ESIName);
-								strcpy(allocation_change->key, id->key);
-								switch(id->operation) {
-									case GET_OP:
-										allocation_change->status = BLOCKED;
-										break;
-									case SET_OP:
-										allocation_change->status = BLOCKED;
-										break;
-									case STORE_OP:
-										allocation_change->status = RELEASED;
-										break;
-								}
-
-								send_content_with_header(planner_socket, RESOURCE_STATUS_CHANGE_TO_PLANNER, allocation_change, sizeof(ResourceAllocation));
-								free(allocation_change);
-								break;
-							case INSTANCE_REPORTS_FAILED_OP:
-							default:
-								log_info(logger, "[OPERATION_FAILED]");
-								break;
-						}
-
-						free(target_instance);
-						break;
-					case PLANNER_COORDINATOR_OP_FAILED:
-						log_error(logger, "[PLANNER_DIDNT_AUTHORIZE_OPERATION]");
-						break;
-				}
-
-				free(header_check);
-				free(id);
-				break;
 			case UNKNOWN_MSG_TYPE:
 				log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
 				break;
@@ -205,6 +116,126 @@ void * listening_thread(int server_socket) {
 				break;
 		}
 		free(header);
+	}
+}
+
+void * thread_listen_esi(int esi_socket) {
+	send_only_header(esi_socket, ESI_COORD_HANDSHAKE_OK);
+	log_info(logger, "[STARTED_LISTENING_THREAD_FOR_ESI]");
+
+	while(1) {
+		MessageHeader * header = malloc(sizeof(MessageHeader));
+		int rec = recv(esi_socket, header, sizeof(MessageHeader), 0);
+
+		if(rec != -1) {
+			switch((*header).type) {
+				case TEST_SEND:
+					log_info(logger, "ATENCIONTEST");
+					break;
+				case INSTRUCTION_DETAIL_TO_COODRINATOR:
+					log_info(logger, "[INCOMING_OPERATION_FROM_ESI]");
+
+					InstructionDetail * id = malloc(sizeof(InstructionDetail));
+					recv(esi_socket, id, sizeof(InstructionDetail), 0);
+					if(id->operation == SET_OP) {
+						int value_size;
+						recv(esi_socket, &value_size, sizeof(int), 0);
+						id->opt_value = malloc(sizeof(char) * value_size);
+						recv(esi_socket, id->opt_value, sizeof(char) * value_size, 0);
+						log_info(logger, "OP_REC_SET_%s_%s_%s", id->ESIName, id->key, id->opt_value);
+					} else if (id->operation == GET_OP) {
+						log_info(logger, "OP_REC_GET_%s_%s", id->ESIName, id->key);
+					} else if(id->operation == STORE_OP){
+						log_info(logger, "OP_REC_STORE_%s_%s", id->ESIName, id->key);
+					}
+
+					CoordinatorPlannerCheck * check = malloc(sizeof(CoordinatorPlannerCheck));
+					strcpy(check->ESIName, id->ESIName);
+					strcpy(check->key, id->key);
+					check->operation = id->operation;
+
+					log_info(logger, "[CHECKING_OPERATION_PERMISSIONS]");
+					switch(id->operation) {
+						case GET_OP:
+							send_content_with_header(planner_socket, CAN_ESI_GET_KEY, check, sizeof(CoordinatorPlannerCheck));
+							break;
+						case SET_OP:
+							send_content_with_header(planner_socket, CAN_ESI_SET_KEY, check, sizeof(CoordinatorPlannerCheck));
+							break;
+						case STORE_OP:
+							send_content_with_header(planner_socket, CAN_ESI_STORE_KEY, check, sizeof(CoordinatorPlannerCheck));
+							break;
+					}
+
+					free(check);
+
+					MessageHeader * header_check = malloc(sizeof(MessageHeader));
+					recv(planner_socket, header_check, sizeof(MessageHeader), 0);
+
+					switch(header_check->type) {
+						case PLANNER_COORDINATOR_OP_OK:
+							log_info(logger, "[PLANNER_OK][LOOKING_FOR_AVAILABLE_INSTANCE]");
+							InstanceRegistration * target_instance = list_get(instances, get_instance_index_to_use());
+							log_info(logger, "[INSTANCE_CHOSEN_TO_EXECUTE][%s]", target_instance->name);
+							send_content_with_header(target_instance->socket, INSTRUCTION_DETAIL_TO_INSTANCE, id, sizeof(InstructionDetail));
+							if(id->operation == SET_OP) {
+								send(target_instance->socket, strlen(id->opt_value), sizeof(int), 0);
+								send(target_instance->socket, id->opt_value, strlen(id->opt_value), 0);
+							}
+							log_info(logger, "[INSTRUCTION_SENT_TO_INSTANCE][AWAITING_CONFIRMATION]");
+
+							header_check = malloc(sizeof(MessageHeader));
+							recv(target_instance->socket, header_check, sizeof(MessageHeader), 0);
+							switch((header_check)->type) {
+								case INSTANCE_REPORTS_SUCCESSFUL_OP:
+									log_info(logger, "[OPERATION_SUCCESSFUL]");
+									ResourceAllocation * allocation_change = malloc(sizeof(ResourceAllocation));
+
+									strcpy(allocation_change->ESIName, id->ESIName);
+									strcpy(allocation_change->key, id->key);
+									switch(id->operation) {
+										case GET_OP:
+											allocation_change->status = BLOCKED;
+											break;
+										case SET_OP:
+											allocation_change->status = BLOCKED;
+											break;
+										case STORE_OP:
+											allocation_change->status = RELEASED;
+											break;
+									}
+
+									//Aviso operación a Planner
+									send_content_with_header(planner_socket, RESOURCE_STATUS_CHANGE_TO_PLANNER, allocation_change, sizeof(ResourceAllocation));
+									send_only_header(esi_socket, COORD_ESI_EXECUTED);
+									free(allocation_change);
+									break;
+								case INSTANCE_REPORTS_FAILED_OP:
+								default:
+									log_info(logger, "[OPERATION_FAILED]");
+									break;
+							}
+
+							free(target_instance);
+							break;
+						case PLANNER_COORDINATOR_OP_FAILED:
+							log_error(logger, "[PLANNER_DIDNT_AUTHORIZE_OPERATION]");
+							break;
+					}
+
+					free(header_check);
+					free(id);
+					break;
+				case UNKNOWN_MSG_TYPE:
+					log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
+					break;
+				default:
+					log_info(logger, "[UNKOWN_MESSAGE_RECIEVED]");
+					send_only_header(esi_socket, UNKNOWN_MSG_TYPE);
+					break;
+			}
+			free(header);
+		}
 	}
 }
 

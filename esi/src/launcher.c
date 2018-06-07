@@ -9,11 +9,13 @@ typedef struct {
 	int coord_socket;
 } SocketToListen;
 
+char esi_name[ESI_NAME_MAX_SIZE];
+
 void * listening_threads(SocketToListen*);
 
 int main(int argc, char **argv){
 	// CONFIG
-	fp = fopen(argv[1], "r");
+	fp = fopen("ejemplo.esi", "r");
 //	if (fp == NULL){
 //		perror("Error al abrir el archivo: ");
 //		exit(EXIT_FAILURE);
@@ -68,6 +70,7 @@ void parser(int coordinator_socket, int planner_socket){
     size_t len = 0;
     ssize_t read;
     InstructionDetail * id = malloc(sizeof(InstructionDetail));
+    strcpy(id->ESIName, esi_name);
 
     if((read = getline(&line, &len, fp)) != -1) {
 		t_esi_operacion parsed = parse(line);
@@ -79,36 +82,44 @@ void parser(int coordinator_socket, int planner_socket){
 					id->operation = GET_OP;
 					strcpy(id->key, parsed.argumentos.GET.clave);
 
+					log_info(logger, "OPERACION GET %s", id->key);
+
 					send_content_with_header(coordinator_socket,
-							INSTRUCTION_DETAIL_TO_COORDINATOR, id,
+							INSTRUCTION_DETAIL_TO_COODRINATOR, id,
 							sizeof(InstructionDetail));
 					break;
 
 				case SET:
 					id->operation = SET_OP;
 					strcpy(id->key, parsed.argumentos.SET.clave);
+					id->opt_value = malloc(strlen(parsed.argumentos.SET.valor) * sizeof(char));
 					strcpy(id->opt_value, parsed.argumentos.SET.valor);
 
+					log_info(logger, "OPERACION SET %s %s", id->key, id->opt_value);
+
 					send_content_with_header(coordinator_socket,
-							INSTRUCTION_DETAIL_TO_COORDINATOR, id,
+							INSTRUCTION_DETAIL_TO_COODRINATOR, id,
 							sizeof(InstructionDetail));
-					send(coordinator_socket, strlen(id->opt_value), sizeof(int), 0);
-					send(coordinator_socket, id->opt_value, strlen(id->opt_value), 0);
+					int aux_len = strlen(parsed.argumentos.SET.valor);
+					send(coordinator_socket, &aux_len, sizeof(int), 0);
+					send(coordinator_socket, id->opt_value, strlen(id->opt_value) * sizeof(char), 0);
 					break;
 
 				case STORE:
 					id->operation = STORE_OP;
 					strcpy(id->key, parsed.argumentos.STORE.clave);
 
+					log_info(logger, "OPERACION STORE %s", id->key);
+
 					send_content_with_header(coordinator_socket,
-							INSTRUCTION_DETAIL_TO_COORDINATOR, id,
+							INSTRUCTION_DETAIL_TO_COODRINATOR, id,
 							sizeof(InstructionDetail));
 					break;
 
-	                default:
-	                    log_error(logger, " ERROR AL PARSEAR LA LINEA <%s>. ABORTANDO", line);
-	                    send_only_header(planner_socket, ESI_EXECUTION_FINISHED);
-	                    exit(EXIT_FAILURE);
+				default:
+					log_error(logger, " ERROR AL PARSEAR LA LINEA <%s>. ABORTANDO", line);
+					send_only_header(planner_socket, ESI_EXECUTION_FINISHED);
+					exit(EXIT_FAILURE);
 	            }
 
 	            destruir_operacion(parsed);
@@ -119,11 +130,13 @@ void parser(int coordinator_socket, int planner_socket){
 	        }
 	    }
 
+	if(feof(fp)) {
 		//EOF
 		send_only_header(planner_socket, ESI_EXECUTION_FINISHED);
-	    if (line) free(line);
-	    free(id);
+		if (line) free(line);
+		free(id);
 		exit(EXIT_SUCCESS);
+	}
 }
 
 void * listening_threads(SocketToListen * socket_to_listen){
@@ -187,6 +200,7 @@ void * listening_threads(SocketToListen * socket_to_listen){
 					char * esi_buffer_name[ESI_NAME_MAX_SIZE];
 					recv(planner_socket, esi_buffer_name, sizeof(ESI_NAME_MAX_SIZE), 0);
 					log_info(logger, "[REGISTERED_AS_%s]", esi_buffer_name);
+					strcpy(esi_name, esi_buffer_name);
 					fflush(stdout);
 					break;
 				case UNKNOWN_MSG_TYPE:

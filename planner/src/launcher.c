@@ -4,6 +4,7 @@
 t_log * logger;
 t_config * config;
 
+t_list * taken_keys;
 t_list * ready_queue;
 t_list * blocked_queue;
 t_list * finished_queue;
@@ -12,6 +13,7 @@ t_list * esi_sockets_list;
 PlannerAlgorithm planner_algorithm;
 int esi_id_counter;
 int superflag = 0;
+int coordinator_socket;
 
 int main(){
 	// CONFIG
@@ -42,7 +44,7 @@ int main(){
 	// END CONNECTION SOCKET
 
 	// COORD CONNECTION
-	int coordinator_socket = connect_with_server(config_get_string_value(config, "IP_COORD"),
+	coordinator_socket = connect_with_server(config_get_string_value(config, "IP_COORD"),
 			atoi(config_get_string_value(config, "PORT_COORD")));
 	if (coordinator_socket < 0){
 		log_error(logger, " ERROR AL CONECTAR CON EL COORDINADOR");
@@ -79,7 +81,7 @@ void * listening_thread(int server_socket) {
 
 		MessageHeader * header = malloc(sizeof(MessageHeader));
 		int rec = recv(client_socket, header, sizeof(MessageHeader), 0);
-
+		CoordinatorPlannerCheck * check = malloc(sizeof(CoordinatorPlannerCheck));
 		switch((*header).type) {
 			case ESI_PLANNER_HANDSHAKE:
 				log_info(logger, "[INCOMING_CONNECTION_ESI]");
@@ -122,6 +124,31 @@ void * listening_thread(int server_socket) {
 				break;
 			case UNKNOWN_MSG_TYPE:
 				log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
+				break;
+			//GUARDA
+			case CAN_ESI_GET_KEY:
+				recv(coordinator_socket, check, sizeof(MessageHeader), 0);
+				if(check_Key_availability(check->key)){
+					send_only_header(coordinator_socket, PLANNER_COORDINATOR_OP_OK);
+				}else{
+					block_esi(check->ESIName);//hacer
+				}
+				break;
+			case CAN_ESI_SET_KEY:
+				recv(coordinator_socket, check, sizeof(MessageHeader), 0);
+				if(check_Key_taken(check->key,check->ESIName)){
+					send_only_header(coordinator_socket, PLANNER_COORDINATOR_OP_OK);
+				}else{
+					send_only_header(coordinator_socket, PLANNER_COORDINATOR_OP_FAILED);
+				}
+				break;
+			case CAN_ESI_STORE_KEY:
+				recv(coordinator_socket, check, sizeof(MessageHeader), 0);
+				if(check_Key_taken(check->key,check->ESIName)){
+					send_only_header(coordinator_socket, PLANNER_COORDINATOR_OP_OK);
+					}else{
+					send_only_header(coordinator_socket, PLANNER_COORDINATOR_OP_FAILED);
+					}
 				break;
 			default:
 				log_error(logger, "[UNKOWN_MESSAGE_RECIEVED]");
@@ -256,5 +283,111 @@ void create_queues(){
 	finished_queue = list_create();
 	running_queue = list_create();
 	esi_sockets_list = list_create();
+	taken_keys = list_create();
 }
+
+
+
+//---MEC place---
+
+/*llega struct (rama esta haciendo receptor.)*/
+/*recibo la estructura del cordi:
+ *
+ typedef struct {
+	char key[RESOURCE_KEY_MAX_SIZE];
+	InstructionOperation operation;
+} InstructionFromCoord;
+ *
+ * */
+
+
+//struct de lista_keys_tomadas:
+typedef struct {
+	char key[RESOURCE_KEY_MAX_SIZE];
+	char holding_esi_id[RESOURCE_KEY_MAX_SIZE];
+} TakenKey;
+
+
+
+//precarga de keys bloqueadas:
+void pre_load_Blocked_keys(){
+	int sizeAr = array_size(config_get_array_value(config, "BLOCKED_KEYS"));
+	char* pre_loaded_keys[sizeAr];
+	memcpy ( pre_loaded_keys, config_get_array_value(config, "BLOCKED_KEYS") ,sizeAr );
+	pload_Keys(pre_loaded_keys,sizeAr);
+
+}
+
+int array_size(char* array[]){
+	int sizeA=0;
+	int i = 0;
+	while(array[i] != NULL){
+		i++;
+		sizeA++;
+	}
+	return sizeA+1;
+}
+
+
+
+
+//carga de keys a lista:
+void load_key(char* key,char* esi_id){
+	TakenKey*node = malloc(sizeof(TakenKey));
+	strcpy(node->key,key);
+	strcpy(node->holding_esi_id,esi_id);
+	list_add(taken_keys, &node);
+}
+
+void pload_Keys(char* k_array[],int sizeK){
+	while(sizeK != 0){
+		load_key(k_array[sizeK],NULL);
+		sizeK--;
+	}
+}
+
+
+bool check_Key_availability(char* key_name){
+	bool key_search(TakenKey*node){
+		if(strcmp(node->key,key_name)){
+			return true;
+		}else{
+			return false;
+		}
+	}
+	return list_any_satisfy(taken_keys,(void*)key_search); //revisar segundo argumento
+}
+
+bool check_Key_taken(char* key,char* esi_id){
+	bool key_search(TakenKey*node){
+		if(strcmp(node->key,key)){
+					return true;
+				}else{
+					return false;
+				}
+	}
+	TakenKey*nodeK = list_find(taken_keys,(void*)key_search);
+	return strcmp(nodeK->holding_esi_id,esi_id);
+}
+
+
+void block_esi(char* ESIName){
+	ESI * temp_esi_running = malloc(sizeof(ESI));
+	bool esi_search(ESI*node){
+			if(strcmp(node->id,ESIName)){
+						return true;
+					}else{
+						return false;
+					}
+		}
+	temp_esi_running = list_find(running_queue,(void*)esi_search);
+	list_add(blocked_queue,temp_esi_running);
+	list_remove_by_condition(running_queue,(void*)esi_search);
+}
+
+
+
+
+
+
 

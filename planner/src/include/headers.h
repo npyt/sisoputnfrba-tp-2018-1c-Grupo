@@ -29,6 +29,16 @@ void sort_queues();
 void sort_by_burst();
 void * running_thread();
 
+
+//probndo
+void block_esi(char* ESIName);
+bool check_Key_availability(char* key_name);
+bool check_Key_taken(char* key,char* esi_id);
+void load_key(char* key,char* esi_id);
+void pre_load_Blocked_keys();
+void pload_Keys(char* k_array[],int sizeK);
+int array_size(char* array[]);
+
 // END TESTING CODE
 
 #endif

@@ -165,7 +165,7 @@ void * listening_threads(SocketToListen * socket_to_listen) {
 											send_only_header(i, PLANNER_COORDINATOR_OP_OK);
 										}else{
 											log_info(logger, "[DENY_OP]");
-											send_only_header(i, PLANNER_COORDINATOR_OP_OK);
+											send_only_header(i, PLANNER_COORDINATOR_OP_FAILED);
 											block_esi(check->ESIName);//hacer
 										}
 										free(check);
@@ -184,7 +184,7 @@ void * listening_threads(SocketToListen * socket_to_listen) {
 											send_only_header(i, PLANNER_COORDINATOR_OP_OK);
 										}else{
 											log_info(logger, "[DENY_OP]");
-											send_only_header(i, PLANNER_COORDINATOR_OP_OK);
+											send_only_header(i, PLANNER_COORDINATOR_OP_FAILED);
 										}
 										free(check);
 									}
@@ -202,7 +202,7 @@ void * listening_threads(SocketToListen * socket_to_listen) {
 											send_only_header(i, PLANNER_COORDINATOR_OP_OK);
 										}else{
 											log_info(logger, "[DENY_OP]");
-											send_only_header(i, PLANNER_COORDINATOR_OP_OK);
+											send_only_header(i, PLANNER_COORDINATOR_OP_FAILED);
 										}
 										free(check);
 									}

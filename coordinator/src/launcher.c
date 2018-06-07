@@ -60,7 +60,7 @@ int main() {
 }
 
 void * w_thread(int a) {
-	sleep(4);
+	sleep(4); //TEST
 }
 
 void * listening_thread(int server_socket) {
@@ -104,6 +104,7 @@ void * listening_thread(int server_socket) {
 					//TODO: Se crea la instancia y se inicia el thread que correponde.
 
 					send_content_with_header(client_socket, INSTANCE_COORD_HANDSHAKE_OK, instance_config, sizeof(InstanceInitConfig));
+
 					free(instance_config);
 				}
 				break;
@@ -117,6 +118,7 @@ void * listening_thread(int server_socket) {
 					recv(client_socket, value_size, sizeof(int), 0);
 					id->opt_value = malloc(sizeof('a') * (*value_size));
 					recv(client_socket, id->opt_value, sizeof('a') * (*value_size), 0);
+					free(value_size);
 				}
 
 				CoordinatorPlannerCheck * check = malloc(sizeof(CoordinatorPlannerCheck));
@@ -137,8 +139,10 @@ void * listening_thread(int server_socket) {
 						break;
 				}
 
+				free(check);
+
 				MessageHeader * header_check = malloc(sizeof(MessageHeader));
-				recv(client_socket, header_check, sizeof(MessageHeader), 0);
+				recv(planner_socket, header_check, sizeof(MessageHeader), 0);
 
 				switch(header_check->type) {
 					case PLANNER_COORDINATOR_OP_OK:
@@ -150,13 +154,47 @@ void * listening_thread(int server_socket) {
 							send(target_instance->socket, strlen(id->opt_value), sizeof(int), 0);
 							send(target_instance->socket, id->opt_value, strlen(id->opt_value), 0);
 						}
-						log_info(logger, "[INSTRUCTION_SENT_TO_INSTANCE]");
+						log_info(logger, "[INSTRUCTION_SENT_TO_INSTANCE][AWAITING_CONFIRMATION]");
+
+						header_check = malloc(sizeof(MessageHeader));
+						recv(target_instance->socket, header_check, sizeof(MessageHeader), 0);
+						switch((header_check)->type) {
+							case INSTANCE_REPORTS_SUCCESSFUL_OP:
+								log_info(logger, "[OPERATION_SUCCESSFUL]");
+								ResourceAllocation * allocation_change = malloc(sizeof(ResourceAllocation));
+
+								strcpy(allocation_change->ESIName, id->ESIName);
+								strcpy(allocation_change->key, id->key);
+								switch(id->operation) {
+									case GET_OP:
+										allocation_change->status = BLOCKED;
+										break;
+									case SET_OP:
+										allocation_change->status = BLOCKED;
+										break;
+									case STORE_OP:
+										allocation_change->status = RELEASED;
+										break;
+								}
+
+								send_content_with_header(planner_socket, RESOURCE_STATUS_CHANGE_TO_PLANNER, allocation_change, sizeof(ResourceAllocation));
+								free(allocation_change);
+								break;
+							case INSTANCE_REPORTS_FAILED_OP:
+							default:
+								log_info(logger, "[OPERATION_FAILED]");
+								break;
+						}
+
+						free(target_instance);
 						break;
 					case PLANNER_COORDINATOR_OP_FAILED:
 						log_error(logger, "[PLANNER_DIDNT_AUTHORIZE_OPERATION]");
 						break;
 				}
 
+				free(header_check);
+				free(id);
 				break;
 			case UNKNOWN_MSG_TYPE:
 				log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
@@ -166,6 +204,7 @@ void * listening_thread(int server_socket) {
 				send_only_header(client_socket, UNKNOWN_MSG_TYPE);
 				break;
 		}
+		free(header);
 	}
 }
 

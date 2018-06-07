@@ -101,8 +101,11 @@ void * listening_thread(int coordinator_socket) {
 					recv(coordinator_socket, id->opt_value, sizeof('a') * (*value_size), 0);
 				}
 
-				process_instruction(id);
-
+				if(process_instruction(id) == 1) {
+					send_only_header(coordinator_socket, INSTANCE_REPORTS_SUCCESSFUL_OP);
+				} else {
+					send_only_header(coordinator_socket, INSTANCE_REPORTS_FAILED_OP);
+				}
 				break;
 			case UNKNOWN_MSG_TYPE:
 				log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
@@ -135,6 +138,8 @@ void initialize_entry_table(int q_entries, int entry_size) {
 }
 
 void process_instruction(InstructionDetail * instruction) {
+	int success = -1;
+
 	switch(instruction->operation) {
 		case GET_OP:
 			{
@@ -166,13 +171,15 @@ void process_instruction(InstructionDetail * instruction) {
 						circular_alg_last_entry = 0;
 					}
 
+					success = 1;
 					log_info(logger, "[OPERATION_EXECUTED][GET][KEY=%s][CREATED_IN=%d]", instruction->key, entry_index);
 				} else {
 					entry->blocked = 1;
 					strcpy(entry->blockedBy, instruction->ESIName);
+
+					success = 1;
 					log_info(logger, "[OPERATION_EXECUTED][GET][KEY=%s]", instruction->key);
 				}
-				//TODO: Informar operacion ok
 			}
 			break;
 		case SET_OP:
@@ -193,12 +200,13 @@ void process_instruction(InstructionDetail * instruction) {
 					if(entry->blocked == 1 && strcmp(entry->blockedBy, instruction->ESIName) ) {
 						entry->size = strlen(instruction->opt_value) * sizeof(char);
 						copy_value_to_block(entry->entry_number, instruction->opt_value, entry->size);
+
+						success = 1;
+						log_info(logger, "[OPERATION_EXECUTED][SET][KEY=%s]", instruction->key);
 					} else {
+						success = -1;
 						log_error(logger, "[OPERATION_ABORTED][SET][KEY_NOT_BLOCKED_BY_ESI][KEY=%s]", instruction->key);
 					}
-
-					log_info(logger, "[OPERATION_EXECUTED][SET][KEY=%s]", instruction->key);
-					//TODO: Informar operacion ok
 				}
 			}
 			break;
@@ -214,24 +222,27 @@ void process_instruction(InstructionDetail * instruction) {
 						if(entry->blocked == 1 && strcmp(entry->blockedBy, instruction->ESIName) ) {
 							entry->blocked = 0;
 							dump_diccio_entry(a);
+
+							success = 1;
 							log_info(logger, "[OPERATION_EXECUTED][STORE][KEY=%s]", instruction->key);
-							//TODO: Informar operacion ok
 						} else {
+							success = -1;
 							log_error(logger, "[OPERATION_ABORTED][STORE][KEY_NOT_BLOCKED_BY_ESI][KEY=%s]", instruction->key);
-							//TODO: Informar operacion fallada
 						}
 					}
 				}
 				if(found == 0) {
+					success = -1;
 					log_error(logger, "[OPERATION_ABORTED][STORE_NOT_FOUND][KEY=%s]", instruction->key);
-					//TODO: Informar operacion fallada
 				}
 			}
 			break;
 		default:
+			success = -1;
 			log_error(logger, "[UNKNOWN_OPERATION_TYPE]");
 			break;
 	}
+	return success;
 }
 
 int get_index_to_replace() {

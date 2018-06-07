@@ -13,7 +13,6 @@ t_list * esi_sockets_list;
 PlannerAlgorithm planner_algorithm;
 int esi_id_counter;
 int superflag = 0;
-int coordinator_socket;
 
 int main(){
 	// CONFIG
@@ -44,7 +43,7 @@ int main(){
 	// END CONNECTION SOCKET
 
 	// COORD CONNECTION
-	coordinator_socket = connect_with_server(config_get_string_value(config, "IP_COORD"),
+	int coordinator_socket = connect_with_server(config_get_string_value(config, "IP_COORD"),
 			atoi(config_get_string_value(config, "PORT_COORD")));
 	if (coordinator_socket < 0){
 		log_error(logger, " ERROR AL CONECTAR CON EL COORDINADOR");
@@ -56,8 +55,13 @@ int main(){
 	send_only_header(coordinator_socket, PLANNER_COORD_HANDSHAKE);
 	// END COORD CONNECTION
 
+	// LISTENING THREAD
+	SocketToListen * sockets_to_listen = malloc(sizeof(SocketToListen));
+	sockets_to_listen->coord_socket = coordinator_socket;
+	sockets_to_listen->server_socket = server_socket;
 	pthread_t listening_thread_id;
-	pthread_create(&listening_thread_id, NULL, listening_thread, server_socket);
+	pthread_create(&listening_thread_id, NULL, listening_threads, sockets_to_listen);
+	// END LISTENING THREAD
 
 	pthread_t planner_console_id;
 	pthread_create(&planner_console_id, NULL, planner_console_launcher, NULL);
@@ -72,88 +76,124 @@ int main(){
 	return 0;
 }
 
-void * listening_thread(int server_socket) {
+void * listening_threads(SocketToListen * socket_to_listen) {
+	int coordinator_socket = socket_to_listen->coord_socket;
+	int server_socket = socket_to_listen->server_socket;
+	fd_set master;
+	fd_set read_fds;
+	FD_ZERO(&master);
+	FD_ZERO(&read_fds);
+	FD_SET(coordinator_socket, &master);
+	FD_SET(server_socket, &master);
+	int new_client_socket;
+	int fdmax = server_socket>coordinator_socket? server_socket : coordinator_socket;
+
 	while(1) {
-		struct sockaddr_in client;
-		int c = sizeof(struct sockaddr_in);
-		int client_socket = accept(server_socket, (struct sockaddr *)&client, (socklen_t *)&c);
-		log_info(logger, "CONEXION RECIBIDA EN SOCKET %d", client_socket);
+		read_fds = master;
+		select(fdmax+1, &read_fds, NULL, NULL, NULL);
 
-		MessageHeader * header = malloc(sizeof(MessageHeader));
-		int rec = recv(client_socket, header, sizeof(MessageHeader), 0);
-		CoordinatorPlannerCheck * check = malloc(sizeof(CoordinatorPlannerCheck));
-		switch((*header).type) {
-			case ESI_PLANNER_HANDSHAKE:
-				log_info(logger, "[INCOMING_CONNECTION_ESI]");
-				ESI * esi_registered = malloc(sizeof(ESI));
-				register_esi(esi_registered);
-				register_esi_socket(client_socket, esi_registered->id);
 
-				// ========== SEND STRUCTURE REGISTRATION VARIATION ==========
-				//send_only_header(client_socket, ESI_PLANNER_HANDSHAKE_OK);
-				//ESIRegistration * esi_name = malloc(sizeof(ESIRegistration));
-				//strcpy(esi_name->id, esi_registered->id);
-				//send_content_with_header(client_socket, ESI_PLANNER_HANDSHAKE_OK, esi_name, sizeof(ESIRegistration));
-				//free(esi_name);
-				// ========== END SEND STRUCTURE REGISTRATION VARIATION ==========
-
-				char * esi_buffer_name[ESI_NAME_MAX_SIZE];
-				strcpy(esi_buffer_name, esi_registered->id);
-				list_add_in_index(ready_queue, 0, esi_registered);
-				change_esi_status(esi_registered, STATUS_READY);
-				log_info(logger, "[%s_REGISTERED_IN_READY_QUEUE]", esi_registered->id);
-				send_content_with_header(client_socket, ESI_PLANNER_HANDSHAKE_OK, esi_buffer_name, sizeof(ESI_NAME_MAX_SIZE));
-
-				fflush(stdout);
-				break;
-			case ESI_EXECUTION_LINE_OK:
-				log_info(logger, "[ESI_EXECUTION_OK]");
-				ESI * esi_execution_ok = list_get(running_queue, 0);
-				esi_execution_ok->last_estimate--;
-				esi_execution_ok->program_counter++;
-				break;
-			case ESI_EXECUTION_FINISHED:
-				log_info(logger, "[ESI_EXECUTION_FINISHED]");
-				ESI * esi_exe_finished = list_remove(running_queue, 0);
-				change_esi_status(esi_exe_finished, STATUS_FINISHED);
-				list_add(finished_queue,esi_exe_finished);
-				break;
-			case PLANNER_COORD_HANDSHAKE_OK:
-				log_info(logger, "El COORDINADOR aceptó mi conexión");
-				fflush(stdout);
-				break;
-			case UNKNOWN_MSG_TYPE:
-				log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
-				break;
-			//GUARDA
-			case CAN_ESI_GET_KEY:
-				recv(coordinator_socket, check, sizeof(MessageHeader), 0);
-				if(check_Key_availability(check->key)){
-					send_only_header(coordinator_socket, PLANNER_COORDINATOR_OP_OK);
-				}else{
-					block_esi(check->ESIName);//hacer
-				}
-				break;
-			case CAN_ESI_SET_KEY:
-				recv(coordinator_socket, check, sizeof(MessageHeader), 0);
-				if(check_Key_taken(check->key,check->ESIName)){
-					send_only_header(coordinator_socket, PLANNER_COORDINATOR_OP_OK);
-				}else{
-					send_only_header(coordinator_socket, PLANNER_COORDINATOR_OP_FAILED);
-				}
-				break;
-			case CAN_ESI_STORE_KEY:
-				recv(coordinator_socket, check, sizeof(MessageHeader), 0);
-				if(check_Key_taken(check->key,check->ESIName)){
-					send_only_header(coordinator_socket, PLANNER_COORDINATOR_OP_OK);
-					}else{
-					send_only_header(coordinator_socket, PLANNER_COORDINATOR_OP_FAILED);
+		for(int i = 0; i <= fdmax; i++){
+			if (FD_ISSET(i, &read_fds)){
+				if(i==server_socket){
+					struct sockaddr_in client;
+					int c = sizeof(struct sockaddr_in);
+					new_client_socket = accept(server_socket, (struct sockaddr *)&client, (socklen_t *)&c);
+					FD_SET(new_client_socket, &master);
+					if(new_client_socket > fdmax){
+						fdmax = new_client_socket;
 					}
-				break;
-			default:
-				log_error(logger, "[UNKOWN_MESSAGE_RECIEVED]");
-				send_only_header(client_socket, UNKNOWN_MSG_TYPE);
-				break;
+					log_info(logger, "CONEXION RECIBIDA EN SOCKET %d", new_client_socket);
+				}
+				else{
+					MessageHeader * header = malloc(sizeof(MessageHeader));
+					if(recv(i, header, sizeof(MessageHeader), 0)){
+						if(FD_ISSET(i, &master)){
+							CoordinatorPlannerCheck * check = malloc(sizeof(CoordinatorPlannerCheck));
+							switch((*header).type) {
+								case ESI_PLANNER_HANDSHAKE:
+									log_info(logger, "[INCOMING_CONNECTION_ESI]");
+									ESI * esi_registered = malloc(sizeof(ESI));
+									register_esi(esi_registered);
+									register_esi_socket(i, esi_registered->id);
+
+									// ========== SEND STRUCTURE REGISTRATION VARIATION ==========
+									//send_only_header(client_socket, ESI_PLANNER_HANDSHAKE_OK);
+									//ESIRegistration * esi_name = malloc(sizeof(ESIRegistration));
+									//strcpy(esi_name->id, esi_registered->id);
+									//send_content_with_header(client_socket, ESI_PLANNER_HANDSHAKE_OK, esi_name, sizeof(ESIRegistration));
+									//free(esi_name);
+									// ========== END SEND STRUCTURE REGISTRATION VARIATION ==========
+
+									char * esi_buffer_name[ESI_NAME_MAX_SIZE];
+									strcpy(esi_buffer_name, esi_registered->id);
+									list_add_in_index(ready_queue, 0, esi_registered);
+									change_esi_status(esi_registered, STATUS_READY);
+									log_info(logger, "[%s_REGISTERED_IN_READY_QUEUE]", esi_registered->id);
+									send_content_with_header(i, ESI_PLANNER_HANDSHAKE_OK, esi_buffer_name, sizeof(ESI_NAME_MAX_SIZE));
+
+									fflush(stdout);
+									break;
+								case ESI_EXECUTION_LINE_OK:
+									log_info(logger, "[ESI_EXECUTION_OK]");
+									ESI * esi_execution_ok = list_get(running_queue, 0);
+									esi_execution_ok->last_estimate--;
+									esi_execution_ok->program_counter++;
+									break;
+								case ESI_EXECUTION_FINISHED:
+									log_info(logger, "[ESI_EXECUTION_FINISHED]");
+									ESI * esi_exe_finished = list_remove(running_queue, 0);
+									change_esi_status(esi_exe_finished, STATUS_FINISHED);
+									list_add(finished_queue,esi_exe_finished);
+									break;
+								case PLANNER_COORD_HANDSHAKE_OK:
+									log_info(logger, "El COORDINADOR aceptó mi conexión");
+									fflush(stdout);
+									break;
+								case UNKNOWN_MSG_TYPE:
+									log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
+									break;
+								//GUARDA
+								case CAN_ESI_GET_KEY:
+
+									recv(coordinator_socket, check, sizeof(MessageHeader), 0);
+									if(check_Key_availability(check->key)){
+										send_only_header(i, PLANNER_COORDINATOR_OP_OK);
+									}else{
+										block_esi(check->ESIName);//hacer
+									}
+									break;
+								case CAN_ESI_SET_KEY:
+									recv(i, check, sizeof(MessageHeader), 0);
+									if(check_Key_taken(check->key,check->ESIName)){
+										send_only_header(i, PLANNER_COORDINATOR_OP_OK);
+									}else{
+										send_only_header(i, PLANNER_COORDINATOR_OP_FAILED);
+									}
+									break;
+								case CAN_ESI_STORE_KEY:
+									recv(i, check, sizeof(MessageHeader), 0);
+									if(check_Key_taken(check->key,check->ESIName)){
+										send_only_header(i, PLANNER_COORDINATOR_OP_OK);
+										}else{
+										send_only_header(i, PLANNER_COORDINATOR_OP_FAILED);
+										}
+									break;
+								default:
+									log_error(logger, "[UNKOWN_MESSAGE_RECIEVED]");
+									send_only_header(i, UNKNOWN_MSG_TYPE);
+									break;
+							}
+							free(check);
+						}
+					}else{
+						log_info(logger, "[ERROR_RECV_LOST_SOCKET_%d]", i);
+						close(i);
+						FD_CLR(i, &master);
+						fflush(stdout);
+					}
+				}
+			}
 		}
 	}
 }

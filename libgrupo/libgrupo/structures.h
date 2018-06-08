@@ -19,6 +19,7 @@ typedef struct {
 	float last_estimate;
 	int last_job;
 	int idle_counter;
+	int redo_last_operation;
 } ESI;
 
 typedef struct {

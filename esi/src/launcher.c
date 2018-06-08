@@ -4,6 +4,9 @@
 t_log * logger;
 FILE * fp;
 
+InstructionDetail last_instruction;
+int fp_beginning_li = 0;
+
 typedef struct {
 	int planner_socket;
 	int coord_socket;
@@ -15,7 +18,7 @@ void * listening_threads(SocketToListen*);
 
 int main(int argc, char **argv){
 	// CONFIG
-	fp = fopen("ESI_MultiClave", "r");
+	fp = fopen("ESI_Largo", "r");
 	if (fp == NULL){
 		perror("Error al abrir el archivo: ");
 		exit(EXIT_FAILURE);
@@ -72,7 +75,9 @@ void parser(int coordinator_socket, int planner_socket){
     InstructionDetail * id = malloc(sizeof(InstructionDetail));
     strcpy(id->ESIName, esi_name);
 
+	fp_beginning_li = ftell(fp);
     if((read = getline(&line, &len, fp)) != -1) {
+
 		t_esi_operacion parsed = parse(line);
 		if(parsed.valido){
 
@@ -82,7 +87,10 @@ void parser(int coordinator_socket, int planner_socket){
 					id->operation = GET_OP;
 					strcpy(id->key, parsed.argumentos.GET.clave);
 
-					log_info(logger, "OPERACION GET %s", id->key);
+					log_info(logger, "FP %d - OPERACION GET %s", fp_beginning_li, id->key);
+
+					strcpy(last_instruction.ESIName, id->ESIName);
+					strcpy(last_instruction.key, id->key);
 
 					send_content_with_header(coordinator_socket,
 							INSTRUCTION_DETAIL_TO_COODRINATOR, id,
@@ -95,7 +103,7 @@ void parser(int coordinator_socket, int planner_socket){
 					id->opt_value = malloc(strlen(parsed.argumentos.SET.valor) * sizeof(char));
 					strcpy(id->opt_value, parsed.argumentos.SET.valor);
 
-					log_info(logger, "OPERACION SET %s %s", id->key, id->opt_value);
+					log_info(logger, "FP %d - OPERACION SET %s %s", fp_beginning_li, id->key, id->opt_value);
 
 					send_content_with_header(coordinator_socket,
 							INSTRUCTION_DETAIL_TO_COODRINATOR, id,
@@ -109,7 +117,7 @@ void parser(int coordinator_socket, int planner_socket){
 					id->operation = STORE_OP;
 					strcpy(id->key, parsed.argumentos.STORE.clave);
 
-					log_info(logger, "OPERACION STORE %s", id->key);
+					log_info(logger, "FP %d - OPERACION STORE %s", fp_beginning_li, id->key);
 
 					send_content_with_header(coordinator_socket,
 							INSTRUCTION_DETAIL_TO_COODRINATOR, id,
@@ -187,9 +195,14 @@ void * listening_threads(SocketToListen * socket_to_listen){
 			recv(planner_socket, header, sizeof(MessageHeader), 0);
 			switch((*header).type) {
 				case PLANNER_ESI_RUN:
-					log_info(logger, "[RUNNING_OK__PARSING_NEW_SENTENCE");
+					log_info(logger, "[RUNNING_OK_PARSING_NEW_SENTENCE]");
 					parser(coordinator_socket, planner_socket);
 					fflush(stdout);
+					break;
+				case PLANNER_ESI_RUN_LAST_OPERATION:
+					log_info(logger, "[RERUN_LAST_OPERATION]");
+					fseek(fp, fp_beginning_li, SEEK_SET);
+					parser(coordinator_socket, planner_socket);
 					break;
 				case ESI_PLANNER_HANDSHAKE_OK:
 					log_info(logger, "El PLANIFICADOR aceptó mi conexión");

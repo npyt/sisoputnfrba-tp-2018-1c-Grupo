@@ -88,8 +88,8 @@ void * listening_thread(int coordinator_socket) {
 					free(instance_config);
 
 					/*InstructionDetail * inst = malloc(sizeof(InstructionDetail));
-					inst->operation = GET;
-					strcpy(inst->key, "MESSI");
+					inst->operation = GET_OP;
+					strcpy(inst->key, "futbol:messi");
 					process_instruction(inst);
 
 					DiccionaryEntry * de = list_get(diccio_table, 0);

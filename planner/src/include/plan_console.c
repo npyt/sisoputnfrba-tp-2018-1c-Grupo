@@ -7,12 +7,10 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-#include "commands.h"
-
 void * planner_console_launcher() {
 	char *linea, *param1, *param2;
 	int command_number, quit = 0;
-	const char* command_list[] = {"salir", "pausa", "reanudar",
+	const char* command_list[] = {"salir", "pausar", "reanudar",
 			"bloquear", "desbloquear", "listar", "kill",
 			"status", "deadlock", "info"};
 	int command_list_length = (int) sizeof(command_list) /
@@ -32,7 +30,6 @@ void * planner_console_launcher() {
 
 			command_number == EXIT ? quit = 1 : execute(command_number,
 					param1, param2);
-
 		}
 
 		free(linea);

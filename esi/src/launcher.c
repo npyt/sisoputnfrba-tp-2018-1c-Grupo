@@ -18,7 +18,7 @@ void * listening_threads(SocketToListen*);
 
 int main(int argc, char **argv){
 	// CONFIG
-	fp = fopen("ESI_Largo", "r");
+	fp = fopen("ESI_1", "r");
 	if (fp == NULL){
 		perror("Error al abrir el archivo: ");
 		exit(EXIT_FAILURE);

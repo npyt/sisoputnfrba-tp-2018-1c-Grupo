@@ -4,12 +4,6 @@
 t_log * logger;
 t_config * config;
 
-t_list * taken_keys;
-t_list * ready_queue;
-t_list * blocked_queue;
-t_list * finished_queue;
-t_list * running_queue;
-t_list * esi_sockets_list;
 PlannerAlgorithm planner_algorithm;
 int esi_id_counter;
 int superflag = 0;
@@ -22,7 +16,7 @@ int main(){
 	// END QUEUES
 
 	// CONFIG
-	logger = log_create("planner_logger.log", "PLANNER", true, LOG_LEVEL_TRACE);
+	logger = log_create("planner_logger.log", "PLANNER", false, LOG_LEVEL_ERROR);
 	config = config_create("planner_config.cfg");
 	esi_id_counter = config_get_int_value(config, "INIT_ID");
 	define_planner_algorithm(config, planner_algorithm);
@@ -106,17 +100,6 @@ void * w_thread() {
 		map_blocked_key(counter);
 		counter++;
 		sleep(2);
-		if(counter == 12) {
-			bool key_search(ResourceAllocation*node){
-				if(strcmp(node->key, "futbol:messi") == 0 && node->status == BLOCKED){
-					return true;
-				}else{
-					return false;
-				}
-			}
-			list_remove_by_condition(taken_keys,(void*)key_search);
-			check_whos_waiting("futbol:messi");
-		}
 	}
 }
 
@@ -290,21 +273,23 @@ void * listening_threads(SocketToListen * socket_to_listen) {
 
 void * running_thread(){
 	while(1){
-		sorting_queues();
-		if(!list_is_empty(ready_queue) && list_is_empty(running_queue)) { // Buscar otro tipo de activación del while
-			ESI * esi_to_run = list_remove(ready_queue, 0);
-			list_add_in_index(running_queue, 0, esi_to_run);
-			change_esi_status(esi_to_run, STATUS_RUNNING);
-			int esi_socket = search_esi_socket(esi_sockets_list, esi_to_run);
+		if(get_flag_planification_running()) {
+			sorting_queues();
+			if(!list_is_empty(ready_queue) && list_is_empty(running_queue)) { // Buscar otro tipo de activación del while
+				ESI * esi_to_run = list_remove(ready_queue, 0);
+				list_add_in_index(running_queue, 0, esi_to_run);
+				change_esi_status(esi_to_run, STATUS_RUNNING);
+				int esi_socket = search_esi_socket(esi_sockets_list, esi_to_run);
 
-			if(esi_to_run->redo_last_operation == true) {
-				log_info(logger, "[%s_REPEATING_LAST_OPERATION]", esi_to_run->id);
-				send_only_header(esi_socket, PLANNER_ESI_RUN_LAST_OPERATION);
-			} else {
-				log_info(logger, "[%s_NOW_RUNNING]", esi_to_run->id);
-				send_only_header(esi_socket, PLANNER_ESI_RUN);
+				if(esi_to_run->redo_last_operation == true) {
+					log_info(logger, "[%s_REPEATING_LAST_OPERATION]", esi_to_run->id);
+					send_only_header(esi_socket, PLANNER_ESI_RUN_LAST_OPERATION);
+				} else {
+					log_info(logger, "[%s_NOW_RUNNING]", esi_to_run->id);
+					send_only_header(esi_socket, PLANNER_ESI_RUN);
+				}
+				esi_to_run->redo_last_operation = false;
 			}
-			esi_to_run->redo_last_operation = false;
 		}
 	}
 }

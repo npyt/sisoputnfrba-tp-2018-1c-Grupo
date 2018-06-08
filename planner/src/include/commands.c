@@ -2,13 +2,41 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <libgrupo/headers.h>
+
+int FLAG_PLANIFICATION_RUNNING = 1;
+
+int get_flag_planification_running() {
+	return FLAG_PLANIFICATION_RUNNING;
+}
 
 //Falta implementacion
-void pause(){};
-void resume(){};
-void block(char* key, char* id){};
-void unblock(char* key){};
-void list(char* resource){};
+void pause(){
+	FLAG_PLANIFICATION_RUNNING = 0;
+	printf("Planificación pausada\n");
+};
+void resume(){
+	FLAG_PLANIFICATION_RUNNING = 1;
+	printf("Planificación reanudada\n");
+};
+void block(char* key, char* id){
+	load_key(key, id);
+	printf("Proceso bloqueado a la espera de recurso\n");
+};
+void unblock(char* key){
+	release_key(key);
+	printf("Key desbloqueada\n");
+};
+void list(char* resource){
+	printf("ESIs esperando %s", resource);
+	void key_search(ResourceAllocation*node){
+		if(strcmp(node->key, resource) == 0 && node->status == WAITING){
+			printf("\n\t%s", node->ESIName);
+		}
+	}
+	list_iterate(taken_keys, key_search);
+	printf("\nFin de lista\n");
+};
 void kill(char* id){};
 void status(char* key){};
 void deadlock(){};

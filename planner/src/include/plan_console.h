@@ -1,6 +1,8 @@
 #ifndef PLAN_CONSOLE_H_
 #define PLAN_CONSOLE_H_
 
+#include "commands.h"
+
 typedef enum{EXIT=0, PAUSE, RESUME,
 	BLOCK, UNBLOCK, LIST, KILL,
 	STATUS, DEADLOCK, INFO} commands;

@@ -10,6 +10,7 @@
 #include <string.h>
 #include <stdbool.h>
 
+#include "commands.h"
 #include "plan_console.h"
 
 typedef struct {

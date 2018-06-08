@@ -16,10 +16,10 @@ void * listening_threads(SocketToListen*);
 int main(int argc, char **argv){
 	// CONFIG
 	fp = fopen("ejemplo.esi", "r");
-//	if (fp == NULL){
-//		perror("Error al abrir el archivo: ");
-//		exit(EXIT_FAILURE);
-//	}
+	if (fp == NULL){
+		perror("Error al abrir el archivo: ");
+		exit(EXIT_FAILURE);
+	}
 
 	t_config * config;
 	logger = log_create("esi_logger.log", "ESI", true, LOG_LEVEL_TRACE);

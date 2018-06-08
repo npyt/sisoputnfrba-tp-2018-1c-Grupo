@@ -160,7 +160,7 @@ void * listening_threads(SocketToListen * socket_to_listen) {
 										CoordinatorPlannerCheck * check = malloc(sizeof(CoordinatorPlannerCheck));
 										recv(coordinator_socket, check, sizeof(CoordinatorPlannerCheck), 0);
 
-										if(check_Key_availability(check->key)){
+										if(!check_Key_availability(check->key)){
 											log_info(logger, "[ALLOW_OP]");
 											send_only_header(i, PLANNER_COORDINATOR_OP_OK);
 										}else{
@@ -179,7 +179,7 @@ void * listening_threads(SocketToListen * socket_to_listen) {
 										CoordinatorPlannerCheck * check = malloc(sizeof(CoordinatorPlannerCheck));
 										recv(coordinator_socket, check, sizeof(CoordinatorPlannerCheck), 0);
 
-										if(check_Key_taken(check->key,check->ESIName)){
+										if(!check_Key_taken(check->key,check->ESIName)){
 											log_info(logger, "[ALLOW_OP]");
 											send_only_header(i, PLANNER_COORDINATOR_OP_OK);
 										}else{
@@ -417,7 +417,7 @@ void pload_Keys(char* k_array[],int sizeK){
 
 bool check_Key_availability(char* key_name){
 	bool key_search(TakenKey*node){
-		if(strcmp(node->key,key_name)){
+		if(strcmp(node->key,key_name) == 0){
 			return true;
 		}else{
 			return false;
@@ -428,7 +428,7 @@ bool check_Key_availability(char* key_name){
 
 bool check_Key_taken(char* key,char* esi_id){
 	bool key_search(TakenKey*node){
-		if(strcmp(node->key,key)){
+		if(strcmp(node->key,key) == 0){
 					return true;
 				}else{
 					return false;
@@ -442,7 +442,7 @@ bool check_Key_taken(char* key,char* esi_id){
 void block_esi(char* ESIName){
 	ESI * temp_esi_running = malloc(sizeof(ESI));
 	bool esi_search(ESI*node){
-			if(strcmp(node->id,ESIName)){
+			if(strcmp(node->id,ESIName) == 0){
 						return true;
 					}else{
 						return false;

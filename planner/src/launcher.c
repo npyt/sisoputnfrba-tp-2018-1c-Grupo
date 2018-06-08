@@ -138,6 +138,8 @@ void * listening_threads(SocketToListen * socket_to_listen) {
 									ESI * esi_execution_ok = list_get(running_queue, 0);
 									esi_execution_ok->last_estimate--;
 									esi_execution_ok->program_counter++;
+									int esi_socket = search_esi_socket(esi_sockets_list, esi_execution_ok);
+									send_only_header(esi_socket, PLANNER_ESI_RUN);
 									break;
 								case ESI_EXECUTION_FINISHED:
 									log_info(logger, "[ESI_EXECUTION_FINISHED]");
@@ -153,11 +155,11 @@ void * listening_threads(SocketToListen * socket_to_listen) {
 									log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
 									break;
 								//GUARDA
-								case KEY_STATUS_CHANGE:
+								case RESOURCE_STATUS_CHANGE_TO_PLANNER:
 								{
 									ResourceAllocation * check = malloc(sizeof(ResourceAllocation));
-								recv(coordinator_socket, check, sizeof(ResourceAllocation), 0);
-								change_key_status(check);
+									recv(coordinator_socket, check, sizeof(ResourceAllocation), 0);
+									change_key_status(check);
 									}
 									break;
 								case CAN_ESI_GET_KEY:
@@ -411,7 +413,7 @@ void load_key(char* key,char* esi_id){
 	ResourceAllocation*node = malloc(sizeof(ResourceAllocation));
 	strcpy(node->key,key);
 	strcpy(node->ESIName,esi_id);
-	list_add(taken_keys, &node);
+	list_add(taken_keys, node);
 }
 
 

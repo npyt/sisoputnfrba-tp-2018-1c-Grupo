@@ -1,5 +1,5 @@
 TARGET = esi
-LIBS = -lcommons -llibgrupo -lpthread
+LIBS = -lcommons -llibgrupo -lpthread -lparsi
 CC = gcc
 CFLAGS = -g -Wall
 

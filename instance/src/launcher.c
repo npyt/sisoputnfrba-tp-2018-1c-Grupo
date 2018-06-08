@@ -70,64 +70,67 @@ void * listening_thread(int coordinator_socket) {
 		MessageHeader * header = malloc(sizeof(MessageHeader));
 		int rec = recv(coordinator_socket, header, sizeof(MessageHeader), 0);
 
-		//Procesar el resto del mensaje dependiendo del tipo recibido
-		switch((*header).type) {
-			case INSTANCE_COORD_HANDSHAKE_OK:
-				log_info(logger,"[COORDINATOR_OK_RECIEVED]");
-				InstanceInitConfig * instance_config = malloc(sizeof(InstanceInitConfig));
-				recv(coordinator_socket, instance_config, sizeof(InstanceInitConfig), 0);
+		if(rec > 0) {
+			//Procesar el resto del mensaje dependiendo del tipo recibido
+			switch((*header).type) {
+				case INSTANCE_COORD_HANDSHAKE_OK:
+					log_info(logger,"[COORDINATOR_OK_RECIEVED]");
+					InstanceInitConfig * instance_config = malloc(sizeof(InstanceInitConfig));
+					recv(coordinator_socket, instance_config, sizeof(InstanceInitConfig), 0);
 
-				log_info(logger, "[CONFIG_RECIEVED][INSTANCES_Q=%d][ENTRY_SIZE=%d]", instance_config->entry_count, instance_config->entry_size);
-				initialize_entry_table(instance_config->entry_count, instance_config->entry_size);
-				free(instance_config);
+					log_info(logger, "[CONFIG_RECIEVED][INSTANCES_Q=%d][ENTRY_SIZE=%d]", instance_config->entry_count, instance_config->entry_size);
+					initialize_entry_table(instance_config->entry_count, instance_config->entry_size);
+					free(instance_config);
 
-				/*InstructionDetail * inst = malloc(sizeof(InstructionDetail));
-				inst->operation = GET;
-				strcpy(inst->key, "MESSI");
-				process_instruction(inst);
+					/*InstructionDetail * inst = malloc(sizeof(InstructionDetail));
+					inst->operation = GET;
+					strcpy(inst->key, "MESSI");
+					process_instruction(inst);
 
-				DiccionaryEntry * de = list_get(diccio_table, 0);
-				EntryBlock * bl = list_get(blocks_table, de->entry_number);
+					DiccionaryEntry * de = list_get(diccio_table, 0);
+					EntryBlock * bl = list_get(blocks_table, de->entry_number);
 
-				inst->operation = SET;
-				strcpy(inst->key, "MESSI");
-				char nv[] = "se lo meressi";
-				inst->opt_value = malloc(sizeof(nv));
-				strcpy(inst->opt_value, nv);
-				process_instruction(inst);
+					inst->operation = SET;
+					strcpy(inst->key, "MESSI");
+					char nv[] = "se lo meressi";
+					inst->opt_value = malloc(sizeof(nv));
+					strcpy(inst->opt_value, nv);
+					process_instruction(inst);
 
-				de = list_get(diccio_table, 0);
-				bl = list_get(blocks_table, de->entry_number);
+					de = list_get(diccio_table, 0);
+					bl = list_get(blocks_table, de->entry_number);
 
-				dump_diccio_entry(0);*/
+					dump_diccio_entry(0);*/
 
-				break;
-			case INSTRUCTION_DETAIL_TO_INSTANCE:
-				log_info(logger, "[INCOMING_OPERATION_FROM_COORDINATOR]");
-				InstructionDetail * id = malloc(sizeof(InstructionDetail));
-				recv(coordinator_socket, id, sizeof(InstructionDetail), 0);
-				if(id->operation == SET_OP) {
-					int value_size;
-					recv(coordinator_socket, &value_size, sizeof(int), 0);
-					id->opt_value = malloc(sizeof(char) * value_size);
-					recv(coordinator_socket, id->opt_value, sizeof(char) * value_size, 0);
-					id->opt_value[value_size] = '\0';
-				}
+					break;
+				case INSTRUCTION_DETAIL_TO_INSTANCE:
+					log_info(logger, "[INCOMING_OPERATION_FROM_COORDINATOR]");
+					InstructionDetail * id = malloc(sizeof(InstructionDetail));
+					recv(coordinator_socket, id, sizeof(InstructionDetail), 0);
+					if(id->operation == SET_OP) {
+						int value_size;
+						recv(coordinator_socket, &value_size, sizeof(int), 0);
+						id->opt_value = malloc(sizeof(char) * value_size);
+						recv(coordinator_socket, id->opt_value, sizeof(char) * value_size, 0);
+						id->opt_value[value_size] = '\0';
+					}
 
-				if(process_instruction(id) == 1) {
-					send_only_header(coordinator_socket, INSTANCE_REPORTS_SUCCESSFUL_OP);
-				} else {
-					send_only_header(coordinator_socket, INSTANCE_REPORTS_FAILED_OP);
-				}
-				break;
-			case UNKNOWN_MSG_TYPE:
-				log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
-				break;
-			default:
-				log_error(logger, "[UNKOWN_MESSAGE_RECIEVED]");
-				send_only_header(coordinator_socket, UNKNOWN_MSG_TYPE);
-				break;
+					if(process_instruction(id) == 1) {
+						send_only_header(coordinator_socket, INSTANCE_REPORTS_SUCCESSFUL_OP);
+					} else {
+						send_only_header(coordinator_socket, INSTANCE_REPORTS_FAILED_OP);
+					}
+					break;
+				case UNKNOWN_MSG_TYPE:
+					log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
+					break;
+				default:
+					log_error(logger, "[UNKOWN_MESSAGE_RECIEVED][%d]", coordinator_socket);
+					send_only_header(coordinator_socket, UNKNOWN_MSG_TYPE);
+					break;
+			}
 		}
+		free(header);
 	}
 }
 

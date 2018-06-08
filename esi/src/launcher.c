@@ -15,7 +15,7 @@ void * listening_threads(SocketToListen*);
 
 int main(int argc, char **argv){
 	// CONFIG
-	fp = fopen("ejemplo.esi", "r");
+	fp = fopen("ESI_1", "r");
 	if (fp == NULL){
 		perror("Error al abrir el archivo: ");
 		exit(EXIT_FAILURE);
@@ -128,15 +128,17 @@ void parser(int coordinator_socket, int planner_socket){
 	        	send_only_header(planner_socket, ESI_EXECUTION_FINISHED);
 	            exit(EXIT_FAILURE);
 	        }
-		if(feof(fp)) {
-				//EOF
-				send_only_header(planner_socket, ESI_EXECUTION_FINISHED);
-				if (line) free(line);
-				free(id);
-				destruir_operacion(parsed);
-				exit(EXIT_SUCCESS);
-			}
 	    }
+	if(feof(fp)) {
+		//EOF
+		log_info(logger, "ESI FINALIZADO");
+		send_only_header(planner_socket, ESI_EXECUTION_FINISHED);
+		close(planner_socket);
+		close(coordinator_socket);
+		if (line) free(line);
+		free(id);
+		exit(EXIT_SUCCESS);
+	}
 }
 
 void * listening_threads(SocketToListen * socket_to_listen){

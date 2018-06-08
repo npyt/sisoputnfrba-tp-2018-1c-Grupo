@@ -69,52 +69,54 @@ void * listening_thread(int server_socket) {
 
 		int rec = recv(client_socket, header, sizeof(MessageHeader), 0);
 
-		//Procesar el resto del mensaje dependiendo del tipo recibido
-		switch((*header).type) {
-			case PLANNER_COORD_HANDSHAKE:
-				log_info(logger, "[INCOMING_CONNECTION_PLANNER]");
-				send_only_header(client_socket, PLANNER_COORD_HANDSHAKE_OK);
-				planner_socket = client_socket;
-				break;
-			case ESI_COORD_HANDSHAKE:
-				log_info(logger, "[INCOMING_CONNECTION_ESI]");
+		if(rec > 0) {
+			//Procesar el resto del mensaje dependiendo del tipo recibido
+			switch((*header).type) {
+				case PLANNER_COORD_HANDSHAKE:
+					log_info(logger, "[INCOMING_CONNECTION_PLANNER]");
+					send_only_header(client_socket, PLANNER_COORD_HANDSHAKE_OK);
+					planner_socket = client_socket;
+					break;
+				case ESI_COORD_HANDSHAKE:
+					log_info(logger, "[INCOMING_CONNECTION_ESI]");
 
-				pthread_t e_thread_id;
-				pthread_create(&e_thread_id, NULL, thread_listen_esi, client_socket);
-				pthread_exit(NULL);
+					pthread_t e_thread_id;
+					pthread_create(&e_thread_id, NULL, thread_listen_esi, client_socket);
+					pthread_exit(NULL);
 
-				break;
-			case INSTANCE_COORD_HANDSHAKE:
-				{
-					char * temp_str = malloc(header->size * sizeof(char));
-					recv(client_socket, temp_str, header->size, 0);
-					temp_str[header->size] = '\0';
+					break;
+				case INSTANCE_COORD_HANDSHAKE:
+					{
+						char * temp_str = malloc(header->size * sizeof(char));
+						recv(client_socket, temp_str, header->size, 0);
+						temp_str[header->size] = '\0';
 
-					InstanceRegistration * ir = malloc(sizeof(InstanceRegistration));
-					ir->name = temp_str;
-					ir->socket = client_socket;
-					ir->status = AVAILABLE;
-					list_add(instances, ir);
+						InstanceRegistration * ir = malloc(sizeof(InstanceRegistration));
+						ir->name = temp_str;
+						ir->socket = client_socket;
+						ir->status = AVAILABLE;
+						list_add(instances, ir);
 
-					log_info(logger, "[INCOMING_CONNECTION_INSTANCE][%s]", ir->name);
+						log_info(logger, "[INCOMING_CONNECTION_INSTANCE][%s]", ir->name);
 
-					InstanceInitConfig * instance_config = malloc(sizeof(InstanceInitConfig));
-					instance_config->entry_count = atoi(config_get_string_value(config, "Q_ENTRIES"));
-					instance_config->entry_size = atoi(config_get_string_value(config, "ENTRY_SIZE"));
-					//TODO: Se crea la instancia y se inicia el thread que correponde.
+						InstanceInitConfig * instance_config = malloc(sizeof(InstanceInitConfig));
+						instance_config->entry_count = atoi(config_get_string_value(config, "Q_ENTRIES"));
+						instance_config->entry_size = atoi(config_get_string_value(config, "ENTRY_SIZE"));
+						//TODO: Se crea la instancia y se inicia el thread que correponde.
 
-					send_content_with_header(client_socket, INSTANCE_COORD_HANDSHAKE_OK, instance_config, sizeof(InstanceInitConfig));
+						send_content_with_header(client_socket, INSTANCE_COORD_HANDSHAKE_OK, instance_config, sizeof(InstanceInitConfig));
 
-					free(instance_config);
-				}
-				break;
-			case UNKNOWN_MSG_TYPE:
-				log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
-				break;
-			default:
-				log_info(logger, "[UNKOWN_MESSAGE_RECIEVED]");
-				send_only_header(client_socket, UNKNOWN_MSG_TYPE);
-				break;
+						free(instance_config);
+					}
+					break;
+				case UNKNOWN_MSG_TYPE:
+					log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
+					break;
+				default:
+					log_error(logger, "[UNKOWN_MESSAGE_RECIEVED]");
+					send_only_header(client_socket, UNKNOWN_MSG_TYPE);
+					break;
+			}
 		}
 		free(header);
 	}
@@ -128,7 +130,7 @@ void * thread_listen_esi(int esi_socket) {
 		MessageHeader * header = malloc(sizeof(MessageHeader));
 		int rec = recv(esi_socket, header, sizeof(MessageHeader), 0);
 
-		if(rec != -1) {
+		if(rec > 0) {
 			switch((*header).type) {
 				case TEST_SEND:
 					log_info(logger, "ATENCIONTEST");
@@ -240,12 +242,12 @@ void * thread_listen_esi(int esi_socket) {
 					log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
 					break;
 				default:
-					log_info(logger, "[UNKOWN_MESSAGE_RECIEVED]");
+					log_error(logger, "[UNKOWN_MESSAGE_RECIEVED]");
 					send_only_header(esi_socket, UNKNOWN_MSG_TYPE);
 					break;
 			}
-			free(header);
 		}
+		free(header);
 	}
 }
 

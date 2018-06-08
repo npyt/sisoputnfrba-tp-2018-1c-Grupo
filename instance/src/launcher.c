@@ -47,7 +47,17 @@ int main() {
 }
 
 void * w_thread(int a) {
-	sleep(4);
+	while(1) {
+		if(diccio_table != NULL) {
+			int a;
+			log_info(logger, "[INSTANCE_CURRENT_STATUS]");
+			for(a=0 ; a<diccio_table->elements_count ; a++) {
+				DiccionaryEntry * element = list_get(diccio_table, a);
+				log_info(logger, "   [E_%d][%s]", a, element->key);
+			}
+		}
+		sleep(5);
+	}
 }
 
 void * listening_thread(int coordinator_socket) {
@@ -137,7 +147,7 @@ void initialize_entry_table(int q_entries, int entry_size) {
 	log_info(logger, "[%d_ENTRIES_INIT]", blocks_table->elements_count);
 }
 
-void process_instruction(InstructionDetail * instruction) {
+int process_instruction(InstructionDetail * instruction) {
 	int success = -1;
 
 	switch(instruction->operation) {

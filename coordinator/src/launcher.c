@@ -207,11 +207,12 @@ void * thread_listen_esi(int esi_socket) {
 
 									//Aviso operación a Planner
 									send_content_with_header(planner_socket, RESOURCE_STATUS_CHANGE_TO_PLANNER, allocation_change, sizeof(ResourceAllocation));
-									send_only_header(esi_socket, COORD_ESI_EXECUTED);
+									send_only_header(planner_socket, ESI_EXECUTION_LINE_OK);
 									free(allocation_change);
 									break;
 								case INSTANCE_REPORTS_FAILED_OP:
 								default:
+									send_only_header(esi_socket, OPERATION_ERROR);
 									log_info(logger, "[OPERATION_FAILED]");
 									break;
 							}

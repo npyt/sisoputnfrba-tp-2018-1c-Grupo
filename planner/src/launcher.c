@@ -163,7 +163,9 @@ void * listening_threads(SocketToListen * socket_to_listen) {
 									{
 										ResourceAllocation * check = malloc(sizeof(ResourceAllocation));
 										recv(coordinator_socket, check, sizeof(ResourceAllocation), 0);
-										change_key_status(check);
+										//change_key_status(check);
+										block_key("futbol:ansaldi");
+										check_whos_waiting("futbol:messi");
 									}
 									break;
 								case CAN_ESI_GET_KEY:
@@ -173,13 +175,20 @@ void * listening_threads(SocketToListen * socket_to_listen) {
 										CoordinatorPlannerCheck * check = malloc(sizeof(CoordinatorPlannerCheck));
 										recv(coordinator_socket, check, sizeof(CoordinatorPlannerCheck), 0);
 
-										if(!check_Key_availability(check->key)){
+										//if(!check_Key_availability(check->key)){
+										if(strcmp(check->key, "futbol:ansaldi")){
 											log_info(logger, "[ALLOW_OP]");
 											send_only_header(i, PLANNER_COORDINATOR_OP_OK);
 										}else{
 											log_info(logger, "[DENY_OP]");
 											send_only_header(i, PLANNER_COORDINATOR_OP_FAILED);
-											block_esi(check->ESIName);//hacer
+											block_esi(check->ESIName);
+
+											ResourceAllocation * esi_waiting_key = malloc(sizeof(ResourceAllocation));
+											strcpy(esi_waiting_key->ESIName, check->ESIName);
+											strcpy(esi_waiting_key->key, check->key);
+											esi_waiting_key->status = WAITING;
+											list_add(taken_keys, esi_waiting_key);
 										}
 										free(check);
 									}
@@ -417,12 +426,13 @@ void load_key(char * key, char * esi_id){
 	strcpy(node->ESIName, esi_id);
 	node->status = BLOCKED;
 	list_add(taken_keys, node);
+	log_info(logger, "[PRE_BLOCKED_KEY][%s]", node->key);
 }
 
 
 
 
-void release_key(char* key,char* esi_id){
+void release_key(char* key){
 	bool key_search(ResourceAllocation*node){
 		if(strcmp(node->key,key) == 0){
 			return true;
@@ -431,12 +441,12 @@ void release_key(char* key,char* esi_id){
 		}
 	}
 	list_remove_by_condition(taken_keys,(void*)key_search);
+
 }
 
 void pload_Keys(char ** k_array, int sizeK){
 	for(int b=0 ; b<sizeK ; b++){
 		load_key(k_array[b], "");
-		log_info(logger, "TAKE KEY %s", k_array[b]);
 	}
 }
 
@@ -446,7 +456,7 @@ void pload_Keys(char ** k_array, int sizeK){
 
 bool check_Key_availability(char* key_name){
 	bool key_search(ResourceAllocation*node){
-		if(strcmp(node->key,key_name) == 0){
+		if(strcmp(node->key,key_name) == 0 && node->status == BLOCKED){
 			return true;
 		}else{
 			return false;
@@ -457,7 +467,7 @@ bool check_Key_availability(char* key_name){
 
 bool check_Key_taken(char* key,char* esi_id){
 	bool key_search(ResourceAllocation*node){
-		if(strcmp(node->key,key) == 0){
+		if(strcmp(node->key,key) == 0 && node->status == BLOCKED){
 					return true;
 				}else{
 					return false;
@@ -471,29 +481,59 @@ bool check_Key_taken(char* key,char* esi_id){
 void block_esi(char* ESIName){
 	ESI * temp_esi_running = malloc(sizeof(ESI));
 	bool esi_search(ESI*node){
-			if(strcmp(node->id,ESIName) == 0){
-						return true;
-					}else{
-						return false;
-					}
-		}
+		if(strcmp(node->id,ESIName) == 0){
+					return true;
+				}else{
+					return false;
+				}
+	}
 	temp_esi_running = list_find(running_queue,(void*)esi_search);
+	list_remove_by_condition(running_queue, (void*)esi_search);
 	list_add(blocked_queue,temp_esi_running);
-	list_remove_by_condition(running_queue,(void*)esi_search);
+	log_info(logger, "[%s BLOCKED AND WAITING %d]", temp_esi_running->id, blocked_queue->elements_count);
+	sleep(10);
+	ResourceAllocation*test = malloc(sizeof(ResourceAllocation));
+	strcpy(test->ESIName, "");
+	strcpy(test->key,"futbol:messi");
+	test->status=RELEASED;
+	change_key_status(test);
+
 }
 
 //funcion para manejar estado de keys
 //recibe lo enviado por coordinador.
 
 void change_key_status(ResourceAllocation*check){
-	if(check->status == BLOCKED){
-		load_key(check->key,check->ESIName);
-	}else{
-		release_key(check->key,check->ESIName);
+	switch(check->status){
+		case BLOCKED:
+			load_key(check->key, check->ESIName);
+			break;
+		case RELEASED:
+			release_key(check->key);
+			check_whos_waiting(check->key);
+			break;
 	}
-
 }
 
+void check_whos_waiting(char * key){
+	log_info(logger, "[CHECKING_ESIS_WAITING_FOR_KEY][%s] - %d", key, taken_keys->elements_count);
+	bool key_search(ResourceAllocation*node){
+		log_info(logger, "%s - %s", node->key, key);
+		if(strcmp(node->key,key) == 0){
+			return true;
+		}else{
+			return false;
+		}
+	}
+	ResourceAllocation*nodeK = list_find(taken_keys, (void*)key_search);
+	list_remove_by_condition(taken_keys, (void*)key_search);
+	int _search_esi_by_socket(ESIsocket *p) {
+		return string_equals_ignore_case(nodeK->ESIName, p->id);
+	}
+	ESI * esi_socket_found = list_remove(blocked_queue, (void*)_search_esi_by_socket);
+	list_add(ready_queue, esi_socket_found);
+	log_info(logger, "[%s_UNLOCKED_TO_READY_QUEUE]", esi_socket_found->id);
+}
 
 
 

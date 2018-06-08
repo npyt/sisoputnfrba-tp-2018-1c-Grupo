@@ -45,7 +45,7 @@ void pre_load_Blocked_keys();
 void pload_Keys(char* k_array[],int sizeK);
 int array_size(char* array[]);
 void change_key_status(ResourceAllocation*check);
-void release_key(char* key,char* esi_id);
+void release_key(char* key);
 // END TESTING CODE
 
 #endif

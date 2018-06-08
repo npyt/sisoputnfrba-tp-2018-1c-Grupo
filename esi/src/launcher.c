@@ -121,11 +121,11 @@ void parser(int coordinator_socket, int planner_socket){
 					send_only_header(planner_socket, ESI_EXECUTION_FINISHED);
 					exit(EXIT_FAILURE);
 	            }
-
-
+			if (line) free(line);
 	        } else {
 	        	log_error(logger, " LA LINEA <%s> NO ES VALIDA. ABORTANDO", line);
 	        	send_only_header(planner_socket, ESI_EXECUTION_FINISHED);
+	        	if (line) free(line);
 	            exit(EXIT_FAILURE);
 	        }
 	    }

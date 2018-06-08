@@ -1,5 +1,5 @@
 TARGET = coordinator
-LIBS = -lcommons -llibgrupo
+LIBS = -lcommons -llibgrupo -lpthread
 CC = gcc
 CFLAGS = -g -Wall
 

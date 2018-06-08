@@ -6,6 +6,8 @@ t_config * config;
 t_list * blocks_table = NULL;
 t_list * diccio_table = NULL;
 
+int CONFIG_IGNORE_INSTANCE_PERMISSIONS = 1;
+
 int MAX_ENTRIES;
 int ENTRY_SIZE_PARAM;
 char * MOUNTING_POINT;
@@ -47,7 +49,7 @@ int main() {
 }
 
 void * w_thread(int a) {
-	while(1) {
+	/*while(1) {
 		if(diccio_table != NULL) {
 			int a;
 			log_info(logger, "[INSTANCE_CURRENT_STATUS]");
@@ -57,12 +59,12 @@ void * w_thread(int a) {
 			}
 		}
 		sleep(5);
-	}
+	}*/
 }
 
 void * listening_thread(int coordinator_socket) {
 	log_info(logger, "[I_REQUEST_OK_TO_START_TO_COORD]");
-	send_content_with_header(coordinator_socket, INSTANCE_COORD_HANDSHAKE, INSTANCE_NAME, sizeof(INSTANCE_NAME) * sizeof('a'));
+	send_content_with_header(coordinator_socket, INSTANCE_COORD_HANDSHAKE, INSTANCE_NAME, (strlen(INSTANCE_NAME)+1) * sizeof(char));
 
 	while(1) {
 		MessageHeader * header = malloc(sizeof(MessageHeader));
@@ -105,10 +107,11 @@ void * listening_thread(int coordinator_socket) {
 				InstructionDetail * id = malloc(sizeof(InstructionDetail));
 				recv(coordinator_socket, id, sizeof(InstructionDetail), 0);
 				if(id->operation == SET_OP) {
-					int * value_size;
-					recv(coordinator_socket, value_size, sizeof(int), 0);
-					id->opt_value = malloc(sizeof('a') * (*value_size));
-					recv(coordinator_socket, id->opt_value, sizeof('a') * (*value_size), 0);
+					int value_size;
+					recv(coordinator_socket, &value_size, sizeof(int), 0);
+					id->opt_value = malloc(sizeof(char) * value_size);
+					recv(coordinator_socket, id->opt_value, sizeof(char) * value_size, 0);
+					id->opt_value[value_size] = '\0';
 				}
 
 				if(process_instruction(id) == 1) {
@@ -205,14 +208,13 @@ int process_instruction(InstructionDetail * instruction) {
 				}
 				if(found == 0) {
 					log_error(logger, "[OPERATION_ABORTED][SET][SET_NOT_FOUND][KEY=%s]", instruction->key);
-					//TODO: Informar operacion fallada
 				} else {
-					if(entry->blocked == 1 && strcmp(entry->blockedBy, instruction->ESIName) ) {
+					if( (entry->blocked == 1 && strcmp(entry->blockedBy, instruction->ESIName)) || CONFIG_IGNORE_INSTANCE_PERMISSIONS) {
 						entry->size = strlen(instruction->opt_value) * sizeof(char);
 						copy_value_to_block(entry->entry_number, instruction->opt_value, entry->size);
 
 						success = 1;
-						log_info(logger, "[OPERATION_EXECUTED][SET][KEY=%s]", instruction->key);
+						log_info(logger, "[OPERATION_EXECUTED][SET][KEY=%s][VALUE=%s]", instruction->key, instruction->opt_value);
 					} else {
 						success = -1;
 						log_error(logger, "[OPERATION_ABORTED][SET][KEY_NOT_BLOCKED_BY_ESI][KEY=%s]", instruction->key);
@@ -229,7 +231,7 @@ int process_instruction(InstructionDetail * instruction) {
 					if ( strcmp(element->key, instruction->key) == 0 ) {
 						found = 1;
 						entry = element;
-						if(entry->blocked == 1 && strcmp(entry->blockedBy, instruction->ESIName) ) {
+						if( (entry->blocked == 1 && strcmp(entry->blockedBy, instruction->ESIName)) || CONFIG_IGNORE_INSTANCE_PERMISSIONS ) {
 							entry->blocked = 0;
 							dump_diccio_entry(a);
 
@@ -284,10 +286,9 @@ int dump_diccio_entry(int index) {
 	strcat(path, "/");
 	strcat(path, entry->key);
 
-	FILE * fl = fopen(path, "w");
+	FILE * fl = fopen(path, "wb+");
+	fwrite(block->data, block->data_size, 1, fl);
+	fclose(fl);
 
-	fwrite(block->data, 1, block->data_size, fl);
-
-	close(fl);
 	return 0;
 }

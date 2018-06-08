@@ -156,10 +156,10 @@ void * listening_threads(SocketToListen * socket_to_listen) {
 									break;
 								//GUARDA
 								case RESOURCE_STATUS_CHANGE_TO_PLANNER:
-								{
-									ResourceAllocation * check = malloc(sizeof(ResourceAllocation));
-									recv(coordinator_socket, check, sizeof(ResourceAllocation), 0);
-									change_key_status(check);
+									{
+										ResourceAllocation * check = malloc(sizeof(ResourceAllocation));
+										recv(coordinator_socket, check, sizeof(ResourceAllocation), 0);
+										change_key_status(check);
 									}
 									break;
 								case CAN_ESI_GET_KEY:
@@ -206,7 +206,7 @@ void * listening_threads(SocketToListen * socket_to_listen) {
 										CoordinatorPlannerCheck * check = malloc(sizeof(CoordinatorPlannerCheck));
 										recv(coordinator_socket, check, sizeof(CoordinatorPlannerCheck), 0);
 
-										if(check_Key_taken(check->key,check->ESIName)){
+										if(!check_Key_taken(check->key,check->ESIName)){
 											log_info(logger, "[ALLOW_OP]");
 											send_only_header(i, PLANNER_COORDINATOR_OP_OK);
 										}else{

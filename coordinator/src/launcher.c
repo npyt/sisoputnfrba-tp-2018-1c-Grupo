@@ -86,8 +86,9 @@ void * listening_thread(int server_socket) {
 				break;
 			case INSTANCE_COORD_HANDSHAKE:
 				{
-					char * temp_str = malloc(header->size);
+					char * temp_str = malloc(header->size * sizeof(char));
 					recv(client_socket, temp_str, header->size, 0);
+					temp_str[header->size] = '\0';
 
 					InstanceRegistration * ir = malloc(sizeof(InstanceRegistration));
 					ir->name = temp_str;
@@ -140,8 +141,9 @@ void * thread_listen_esi(int esi_socket) {
 					if(id->operation == SET_OP) {
 						int value_size;
 						recv(esi_socket, &value_size, sizeof(int), 0);
-						id->opt_value = malloc(sizeof(char) * value_size);
+						id->opt_value = malloc((sizeof(char)+1) * value_size);
 						recv(esi_socket, id->opt_value, sizeof(char) * value_size, 0);
+						id->ESIName[value_size] = '\0';
 						log_info(logger, "OP_REC_SET_%s_%s_%s", id->ESIName, id->key, id->opt_value);
 					} else if (id->operation == GET_OP) {
 						log_info(logger, "OP_REC_GET_%s_%s", id->ESIName, id->key);
@@ -175,20 +177,26 @@ void * thread_listen_esi(int esi_socket) {
 					switch(header_check->type) {
 						case PLANNER_COORDINATOR_OP_OK:
 							log_info(logger, "[PLANNER_OK][LOOKING_FOR_AVAILABLE_INSTANCE]");
-							InstanceRegistration * target_instance = list_get(instances, get_instance_index_to_use());
+							int instance_index = get_instance_index_to_use();
+
+							InstanceRegistration * target_instance = list_get(instances, instance_index);
 							log_info(logger, "[INSTANCE_CHOSEN_TO_EXECUTE][%s]", target_instance->name);
+
 							send_content_with_header(target_instance->socket, INSTRUCTION_DETAIL_TO_INSTANCE, id, sizeof(InstructionDetail));
 							if(id->operation == SET_OP) {
-								send(target_instance->socket, strlen(id->opt_value), sizeof(int), 0);
-								send(target_instance->socket, id->opt_value, strlen(id->opt_value), 0);
+								int size = strlen(id->opt_value);
+								send(target_instance->socket, &size, sizeof(int), 0);
+								send(target_instance->socket, id->opt_value, size * sizeof(char), 0);
 							}
 							log_info(logger, "[INSTRUCTION_SENT_TO_INSTANCE][AWAITING_CONFIRMATION]");
+
+							eq_load_alg_last_used_inst = instance_index;
 
 							header_check = malloc(sizeof(MessageHeader));
 							recv(target_instance->socket, header_check, sizeof(MessageHeader), 0);
 							switch((header_check)->type) {
 								case INSTANCE_REPORTS_SUCCESSFUL_OP:
-									log_info(logger, "[OPERATION_SUCCESSFUL]");
+									log_info(logger, "[OPERATION_SUCCESSFULL]");
 									ResourceAllocation * allocation_change = malloc(sizeof(ResourceAllocation));
 
 									strcpy(allocation_change->ESIName, id->ESIName);
@@ -205,8 +213,11 @@ void * thread_listen_esi(int esi_socket) {
 											break;
 									}
 
+									log_info(logger, "[NOTIFY_PLANNER]");
 									//Aviso operación a Planner
-									send_content_with_header(planner_socket, RESOURCE_STATUS_CHANGE_TO_PLANNER, allocation_change, sizeof(ResourceAllocation));
+									if(id->operation != SET_OP) {
+										send_content_with_header(planner_socket, RESOURCE_STATUS_CHANGE_TO_PLANNER, allocation_change, sizeof(ResourceAllocation));
+									}
 									send_only_header(planner_socket, ESI_EXECUTION_LINE_OK);
 									free(allocation_change);
 									break;
@@ -216,8 +227,6 @@ void * thread_listen_esi(int esi_socket) {
 									log_info(logger, "[OPERATION_FAILED]");
 									break;
 							}
-
-							free(target_instance);
 							break;
 						case PLANNER_COORDINATOR_OP_FAILED:
 							log_error(logger, "[PLANNER_DIDNT_AUTHORIZE_OPERATION]");
@@ -262,6 +271,7 @@ int get_instance_index_to_use() {
 						index_to_use++;
 						if (index_to_use == instances->elements_count) { index_to_use = 0; }
 					}
+
 					if(((InstanceRegistration*)(list_get(instances, index_to_use)))->status == AVAILABLE) {
 						return index_to_use;
 					} else {

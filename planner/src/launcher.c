@@ -153,6 +153,13 @@ void * listening_threads(SocketToListen * socket_to_listen) {
 									log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
 									break;
 								//GUARDA
+								case KEY_STATUS_CHANGE:
+								{
+									ResourceAllocation * check = malloc(sizeof(ResourceAllocation));
+								recv(coordinator_socket, check, sizeof(ResourceAllocation), 0);
+								change_key_status(check);
+									}
+									break;
 								case CAN_ESI_GET_KEY:
 									log_info(logger, "[COORDINATOR_ASKING_FOR_PERMISSION]");
 
@@ -370,11 +377,11 @@ void create_queues(){
 
 
 //struct de lista_keys_tomadas:
-typedef struct {
+/*typedef struct {
 	char key[RESOURCE_KEY_MAX_SIZE];
 	char holding_esi_id[RESOURCE_KEY_MAX_SIZE];
 } TakenKey;
-
+*/
 
 
 //precarga de keys bloqueadas:
@@ -399,12 +406,26 @@ int array_size(char* array[]){
 
 
 
-//carga de keys a lista:
+//carga y liberacion de keys a lista:
 void load_key(char* key,char* esi_id){
-	TakenKey*node = malloc(sizeof(TakenKey));
+	ResourceAllocation*node = malloc(sizeof(ResourceAllocation));
 	strcpy(node->key,key);
-	strcpy(node->holding_esi_id,esi_id);
+	strcpy(node->ESIName,esi_id);
 	list_add(taken_keys, &node);
+}
+
+
+
+
+void release_key(char* key,char* esi_id){
+	bool key_search(ResourceAllocation*node){
+		if(strcmp(node->key,key) == 0){
+					return true;
+				}else{
+					return false;
+				}
+	}
+	list_remove_by_condition(taken_keys,(void*)key_search);
 }
 
 void pload_Keys(char* k_array[],int sizeK){
@@ -415,8 +436,11 @@ void pload_Keys(char* k_array[],int sizeK){
 }
 
 
+
+
+
 bool check_Key_availability(char* key_name){
-	bool key_search(TakenKey*node){
+	bool key_search(ResourceAllocation*node){
 		if(strcmp(node->key,key_name) == 0){
 			return true;
 		}else{
@@ -427,15 +451,15 @@ bool check_Key_availability(char* key_name){
 }
 
 bool check_Key_taken(char* key,char* esi_id){
-	bool key_search(TakenKey*node){
+	bool key_search(ResourceAllocation*node){
 		if(strcmp(node->key,key) == 0){
 					return true;
 				}else{
 					return false;
 				}
 	}
-	TakenKey*nodeK = list_find(taken_keys,(void*)key_search);
-	return strcmp(nodeK->holding_esi_id,esi_id);
+	ResourceAllocation*nodeK = list_find(taken_keys,(void*)key_search);
+	return strcmp(nodeK->ESIName,esi_id);
 }
 
 
@@ -453,7 +477,17 @@ void block_esi(char* ESIName){
 	list_remove_by_condition(running_queue,(void*)esi_search);
 }
 
+//funcion para manejar estado de keys
+//recibe lo enviado por coordinador.
 
+void change_key_status(ResourceAllocation*check){
+	if(check->status == BLOCKED){
+		load_key(check->key,check->ESIName);
+	}else{
+		release_key(check->key,check->ESIName);
+	}
+
+}
 
 
 

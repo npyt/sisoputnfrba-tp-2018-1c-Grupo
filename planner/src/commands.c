@@ -1,7 +1,7 @@
+#include "commands.h"
+
 #include <stdio.h>
 #include <stdlib.h>
-#include "commands.h"
-#include "plan_console.h"
 
 //Falta implementacion
 void pause(){};

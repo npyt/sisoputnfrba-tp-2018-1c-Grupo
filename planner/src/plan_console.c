@@ -1,10 +1,13 @@
+#include "plan_console.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "plan_console.h"
-#include "commands.h"
+
 #include <readline/readline.h>
 #include <readline/history.h>
+
+#include "commands.h"
 
 void * planner_console_launcher() {
 	char *linea, *param1, *param2;

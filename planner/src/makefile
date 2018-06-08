@@ -1,5 +1,5 @@
 TARGET = planner
-LIBS = -lcommons -llibgrupo -lpthread
+LIBS = -lcommons -llibgrupo -lpthread -lreadline
 CC = gcc
 CFLAGS = -g -Wall
 

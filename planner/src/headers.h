@@ -10,6 +10,8 @@
 #include <string.h>
 #include <stdbool.h>
 
+#include "plan_console.h"
+
 typedef struct {
 	int server_socket;
 	int coord_socket;
@@ -18,7 +20,6 @@ typedef struct {
 void change_esi_status(ESI *, ESIStatus);
 void create_queues();
 void define_planner_algorithm(t_config *, PlannerAlgorithm);
-void planner_console_launcher();
 void * listening_threads(SocketToListen*);
 
 // TESTING CODE

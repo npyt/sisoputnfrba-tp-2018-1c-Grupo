@@ -1,5 +1,5 @@
 #include <libgrupo/headers.h>
-#include "include/headers.h"
+#include "headers.h"
 
 t_log * logger;
 t_config * config;

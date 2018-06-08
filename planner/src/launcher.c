@@ -107,7 +107,7 @@ void * listening_threads(SocketToListen * socket_to_listen) {
 				}
 				else{
 					MessageHeader * header = malloc(sizeof(MessageHeader));
-					if(recv(i, header, sizeof(MessageHeader), 0) > 0){
+					if(recv(i, header, sizeof(MessageHeader), 0)){
 						if(FD_ISSET(i, &master)){
 							switch((*header).type) {
 								case ESI_PLANNER_HANDSHAKE:
@@ -147,6 +147,8 @@ void * listening_threads(SocketToListen * socket_to_listen) {
 									change_esi_status(esi_exe_finished, STATUS_FINISHED);
 									list_add(finished_queue,esi_exe_finished);
 									close(i);
+									FD_CLR(i, &master);
+									fflush(stdout);
 									break;
 								case PLANNER_COORD_HANDSHAKE_OK:
 									log_info(logger, "El COORDINADOR aceptó mi conexión");

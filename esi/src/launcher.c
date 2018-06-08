@@ -15,7 +15,7 @@ void * listening_threads(SocketToListen*);
 
 int main(int argc, char **argv){
 	// CONFIG
-	fp = fopen("ESI_1", "r");
+	fp = fopen("ESI_MultiClave", "r");
 	if (fp == NULL){
 		perror("Error al abrir el archivo: ");
 		exit(EXIT_FAILURE);
@@ -133,6 +133,7 @@ void parser(int coordinator_socket, int planner_socket){
 		//EOF
 		log_info(logger, "ESI FINALIZADO");
 		send_only_header(planner_socket, ESI_EXECUTION_FINISHED);
+		send_only_header(coordinator_socket, ESI_EXECUTION_FINISHED);
 		close(planner_socket);
 		close(coordinator_socket);
 		if (line) free(line);

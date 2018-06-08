@@ -82,7 +82,6 @@ void * listening_thread(int server_socket) {
 
 					pthread_t e_thread_id;
 					pthread_create(&e_thread_id, NULL, thread_listen_esi, client_socket);
-					pthread_exit(NULL);
 
 					break;
 				case INSTANCE_COORD_HANDSHAKE:
@@ -123,10 +122,11 @@ void * listening_thread(int server_socket) {
 }
 
 void * thread_listen_esi(int esi_socket) {
+	int esi_alive = 1;
 	send_only_header(esi_socket, ESI_COORD_HANDSHAKE_OK);
 	log_info(logger, "[STARTED_LISTENING_THREAD_FOR_ESI]");
 
-	while(1) {
+	while(esi_alive) {
 		MessageHeader * header = malloc(sizeof(MessageHeader));
 		int rec = recv(esi_socket, header, sizeof(MessageHeader), 0);
 
@@ -134,6 +134,9 @@ void * thread_listen_esi(int esi_socket) {
 			switch((*header).type) {
 				case TEST_SEND:
 					log_info(logger, "ATENCIONTEST");
+					break;
+				case ESI_EXECUTION_FINISHED:
+					esi_alive = 0;
 					break;
 				case INSTRUCTION_DETAIL_TO_COODRINATOR:
 					log_info(logger, "[INCOMING_OPERATION_FROM_ESI]");
@@ -249,6 +252,7 @@ void * thread_listen_esi(int esi_socket) {
 		}
 		free(header);
 	}
+	close(esi_socket);
 }
 
 int get_instance_index_to_use() {

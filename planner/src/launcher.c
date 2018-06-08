@@ -1,5 +1,5 @@
 #include <libgrupo/headers.h>
-#include "headers.h"
+#include "./include/headers.h"
 
 t_log * logger;
 t_config * config;
@@ -15,16 +15,17 @@ int esi_id_counter;
 int superflag = 0;
 
 int main(){
+	// QUEUES
+	create_queues();
+	// END QUEUES
+
 	// CONFIG
 	logger = log_create("planner_logger.log", "PLANNER", true, LOG_LEVEL_TRACE);
 	config = config_create("planner_config.cfg");
 	esi_id_counter = config_get_int_value(config, "INIT_ID");
 	define_planner_algorithm(config, planner_algorithm);
+	pre_load_Blocked_keys();
 	// END CONFIG
-
-	// QUEUES
-	create_queues();
-	// END QUEUES
 
 	// CONNECTION SOCKET
 	int server_socket = server_start(atoi(config_get_string_value(config, "PORT")));
@@ -391,11 +392,9 @@ void create_queues(){
 
 //precarga de keys bloqueadas:
 void pre_load_Blocked_keys(){
-	int sizeAr = array_size(config_get_array_value(config, "BLOCKED_KEYS"));
-	char* pre_loaded_keys[sizeAr];
-	memcpy ( pre_loaded_keys, config_get_array_value(config, "BLOCKED_KEYS") ,sizeAr );
-	pload_Keys(pre_loaded_keys,sizeAr);
-
+	int sizeAr = array_size(config_get_array_value(config, "BLOCKED_KEYS")) - 1;
+	char ** pre_loaded_keys = config_get_array_value(config, "BLOCKED_KEYS");
+	pload_Keys(pre_loaded_keys, sizeAr);
 }
 
 int array_size(char* array[]){
@@ -412,10 +411,11 @@ int array_size(char* array[]){
 
 
 //carga y liberacion de keys a lista:
-void load_key(char* key,char* esi_id){
-	ResourceAllocation*node = malloc(sizeof(ResourceAllocation));
-	strcpy(node->key,key);
-	strcpy(node->ESIName,esi_id);
+void load_key(char * key, char * esi_id){
+	ResourceAllocation * node = malloc(sizeof(ResourceAllocation));
+	strcpy(node->key, key);
+	strcpy(node->ESIName, esi_id);
+	node->status = BLOCKED;
 	list_add(taken_keys, node);
 }
 
@@ -425,18 +425,18 @@ void load_key(char* key,char* esi_id){
 void release_key(char* key,char* esi_id){
 	bool key_search(ResourceAllocation*node){
 		if(strcmp(node->key,key) == 0){
-					return true;
-				}else{
-					return false;
-				}
+			return true;
+		}else{
+			return false;
+		}
 	}
 	list_remove_by_condition(taken_keys,(void*)key_search);
 }
 
-void pload_Keys(char* k_array[],int sizeK){
-	while(sizeK != 0){
-		load_key(k_array[sizeK],NULL);
-		sizeK--;
+void pload_Keys(char ** k_array, int sizeK){
+	for(int b=0 ; b<sizeK ; b++){
+		load_key(k_array[b], "");
+		log_info(logger, "TAKE KEY %s", k_array[b]);
 	}
 }
 

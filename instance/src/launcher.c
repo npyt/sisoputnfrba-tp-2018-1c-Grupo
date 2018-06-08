@@ -18,8 +18,15 @@ int circular_alg_last_entry;
 void * w_thread(int a);
 
 int main() {
-	logger = log_create("instance_logger.log", "INSTANCE", true, LOG_LEVEL_TRACE);
-	config = config_create("instance_config.cfg");
+	config = config_create("instance_config_1.cfg");
+	MOUNTING_POINT = config_get_string_value(config, "MOUNTING_POINT");
+	INSTANCE_NAME = config_get_string_value(config, "NAME");
+
+	char * instance_logger_path = malloc(sizeof(char) * (strlen(INSTANCE_NAME) + 22));
+	strcpy(instance_logger_path, "instance_logger_");
+	strcat(instance_logger_path, INSTANCE_NAME);
+	strcat(instance_logger_path, ".log");
+	logger = log_create(instance_logger_path, "INSTANCE", true, LOG_LEVEL_TRACE);
 
 	//Puerto para comunicarse con el coordinador
 	int coordinator_socket = connect_with_server(config_get_string_value(config, "IP_COORD"),
@@ -31,8 +38,6 @@ int main() {
 		log_info(logger, "CONECTADO EN: %d", coordinator_socket);
 	}
 
-	MOUNTING_POINT = config_get_string_value(config, "MOUNTING_POINT");
-	INSTANCE_NAME = config_get_string_value(config, "NAME");
 
 	pthread_t listening_thread_id;
 	pthread_create(&listening_thread_id, NULL, listening_thread, coordinator_socket);

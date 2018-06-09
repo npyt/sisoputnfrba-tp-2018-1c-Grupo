@@ -2,7 +2,7 @@ cd
 mkdir inst1
 mkdir inst2
 
-cd tp-2018-1c-Grupo
+cd workspace/tp-2018-1c-Grupo
 
 git clone https://github.com/sisoputnfrba/so-commons-library.git
 cd so-commons-library

@@ -16,7 +16,7 @@ int main(){
 	// END QUEUES
 
 	// CONFIG
-	logger = log_create("planner_logger.log", "PLANNER", true, LOG_LEVEL_TRACE);
+	logger = log_create("planner_logger.log", "PLANNER", false, LOG_LEVEL_TRACE);
 	config = config_create("planner_config.cfg");
 	esi_id_counter = config_get_int_value(config, "INIT_ID");
 	define_planner_algorithm(config, planner_algorithm);
@@ -66,8 +66,8 @@ int main(){
 	pthread_t running_thread_id;
 	pthread_create(&running_thread_id, NULL, running_thread, NULL);
 
-	pthread_t w_thread_id;
-	pthread_create(&w_thread_id, NULL, w_thread, NULL);
+//	pthread_t w_thread_id;
+//	pthread_create(&w_thread_id, NULL, w_thread, NULL);
 
 
 	pthread_exit(NULL);
@@ -163,7 +163,7 @@ void * listening_threads(SocketToListen * socket_to_listen) {
 								case ESI_EXECUTION_LINE_OK:
 									log_info(logger, "[ESI_EXECUTION_OK]");
 									ESI * esi_execution_ok = list_get(running_queue, 0);
-									esi_execution_ok->last_estimate--;
+									//esi_execution_ok->last_estimate--;
 									esi_execution_ok->program_counter++;
 									if(planner_algorithm==SJF_CD){
 										ESI * temp_esi_running = malloc(sizeof(ESI));
@@ -186,8 +186,12 @@ void * listening_threads(SocketToListen * socket_to_listen) {
 									log_info(logger, "[ESI_EXECUTION_FINISHED]");
 									ESI * esi_exe_finished = list_remove(running_queue, 0);
 									change_esi_status(esi_exe_finished, STATUS_FINISHED);
+									esi_exe_finished->last_estimate = estimation(esi_exe_finished->program_counter, esi_exe_finished->last_estimate);
+									esi_exe_finished->program_counter = 0;
 									list_add(finished_queue,esi_exe_finished);
-									log_info(logger, "[%s][LAST_ESTIMATION_%d]", esi_exe_finished->id, esi_exe_finished->last_estimate);
+									printf("[%s][FINISH_ESTIMATION_%f]", esi_exe_finished->id, esi_exe_finished->last_estimate);
+									fflush(stdout);
+									log_info(logger, "[%s][LAST_ESTIMATION_%f]", esi_exe_finished->id, esi_exe_finished->last_estimate);
 									close(i);
 									FD_CLR(i, &master);
 									fflush(stdout);
@@ -288,12 +292,13 @@ void * listening_threads(SocketToListen * socket_to_listen) {
 
 void * running_thread(){
 	while(1){
+		sorting_queues();
 		if(get_flag_planification_running()) {
-			sorting_queues();
 			if(!list_is_empty(ready_queue) && list_is_empty(running_queue)) { // Buscar otro tipo de activación del while
 				ESI * esi_to_run = list_remove(ready_queue, 0);
 				list_add_in_index(running_queue, 0, esi_to_run);
 				change_esi_status(esi_to_run, STATUS_RUNNING);
+				(esi_to_run->program_counter)++;
 				int esi_socket = search_esi_socket(esi_sockets_list, esi_to_run);
 
 				if(esi_to_run->redo_last_operation == true) {
@@ -361,8 +366,8 @@ void register_esi_socket(int socket, char * esi_id){
 }
 
 float estimation(int r_duration, float r_estimation) {
-	int alpha = config_get_int_value(config, "ALPHA");
-	float estimation = (alpha/100)*r_duration + (1-alpha/100)*r_estimation;
+	float alpha = config_get_double_value(config, "ALPHA");
+	float estimation = (alpha/100)*r_duration + (1-(alpha/100))*r_estimation;
 	return estimation;
 }
 
@@ -539,8 +544,11 @@ void block_esi(char* ESIName){
 	}
 	temp_esi_running = list_find(running_queue,(void*)esi_search);
 	list_remove_by_condition(running_queue, (void*)esi_search);
+	temp_esi_running->last_estimate = estimation(temp_esi_running->program_counter, temp_esi_running->last_estimate);
+	temp_esi_running->program_counter = 0;
 	list_add(blocked_queue,temp_esi_running);
-	log_info(logger, "[%s BLOCKED AND WAITING]", temp_esi_running->id);
+	printf("[%s BLOCKED AND WAITING][ESTIMATION %f]", temp_esi_running->id, temp_esi_running->last_estimate);
+	fflush(stdout);
 }
 
 //funcion para manejar estado de keys

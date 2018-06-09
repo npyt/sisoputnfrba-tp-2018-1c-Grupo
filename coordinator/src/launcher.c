@@ -13,11 +13,11 @@ int planner_socket = -1;
 
 void * thread_listen_esi(int esi_socket);
 
-int main() {
+int main(int argc, char **argv) {
 	printf("COORDINATOR");
 
 	logger = log_create("coordinator_logger.log", "COORDINATOR", true, LOG_LEVEL_TRACE);
-	config = config_create("coordinator_config.cfg");
+	config = config_create(argv[1]);
 
 	instances = list_create();
 

@@ -17,8 +17,8 @@ int circular_alg_last_entry;
 
 void * w_thread(int a);
 
-int main() {
-	config = config_create("instance_config_1.cfg");
+int main(int argc, char **argv) {
+	config = config_create(argv[1]);
 	MOUNTING_POINT = config_get_string_value(config, "MOUNTING_POINT");
 	INSTANCE_NAME = config_get_string_value(config, "NAME");
 

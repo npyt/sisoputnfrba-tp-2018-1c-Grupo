@@ -10,14 +10,14 @@ int superflag = 0;
 
 void * w_thread();
 
-int main(){
+int main(int argc, char **argv){
 	// QUEUES
 	create_queues();
 	// END QUEUES
 
 	// CONFIG
 	logger = log_create("planner_logger.log", "PLANNER", false, LOG_LEVEL_TRACE);
-	config = config_create("planner_config.cfg");
+	config = config_create(argv[1]);
 	esi_id_counter = config_get_int_value(config, "INIT_ID");
 	define_planner_algorithm(config, planner_algorithm);
 	pre_load_Blocked_keys();

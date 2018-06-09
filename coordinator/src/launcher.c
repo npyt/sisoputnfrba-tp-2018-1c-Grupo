@@ -17,7 +17,7 @@ int main(int argc, char **argv) {
 	printf("COORDINATOR");
 
 	logger = log_create("coordinator_logger.log", "COORDINATOR", true, LOG_LEVEL_TRACE);
-	config = config_create("coordinator_config_1.cfg");
+	config = config_create(argv[1]);
 
 	instances = list_create();
 

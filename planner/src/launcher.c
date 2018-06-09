@@ -16,7 +16,7 @@ int main(){
 	// END QUEUES
 
 	// CONFIG
-	logger = log_create("planner_logger.log", "PLANNER", false, LOG_LEVEL_ERROR);
+	logger = log_create("planner_logger.log", "PLANNER", true, LOG_LEVEL_TRACE);
 	config = config_create("planner_config.cfg");
 	esi_id_counter = config_get_int_value(config, "INIT_ID");
 	define_planner_algorithm(config, planner_algorithm);
@@ -165,14 +165,29 @@ void * listening_threads(SocketToListen * socket_to_listen) {
 									ESI * esi_execution_ok = list_get(running_queue, 0);
 									esi_execution_ok->last_estimate--;
 									esi_execution_ok->program_counter++;
-									int esi_socket = search_esi_socket(esi_sockets_list, esi_execution_ok);
-									send_only_header(esi_socket, PLANNER_ESI_RUN);
+									if(planner_algorithm==SJF_CD){
+										ESI * temp_esi_running = malloc(sizeof(ESI));
+										ESI * temp_esi_ready = malloc(sizeof(ESI));
+										temp_esi_running = list_get(running_queue, 0);
+										temp_esi_ready = list_get(ready_queue, 0);
+										sort_by_burst();
+										if(temp_esi_running->last_estimate>temp_esi_ready->last_estimate){
+											list_add(ready_queue,temp_esi_running);
+											list_remove(running_queue, 0);
+											sort_by_burst();
+									    }
+										free(temp_esi_ready);
+									}else{
+										int esi_socket = search_esi_socket(esi_sockets_list, esi_execution_ok);
+										send_only_header(esi_socket, PLANNER_ESI_RUN);
+									}
 									break;
 								case ESI_EXECUTION_FINISHED:
 									log_info(logger, "[ESI_EXECUTION_FINISHED]");
 									ESI * esi_exe_finished = list_remove(running_queue, 0);
 									change_esi_status(esi_exe_finished, STATUS_FINISHED);
 									list_add(finished_queue,esi_exe_finished);
+									log_info(logger, "[%s][LAST_ESTIMATION_%d]", esi_exe_finished->id, esi_exe_finished->last_estimate);
 									close(i);
 									FD_CLR(i, &master);
 									fflush(stdout);

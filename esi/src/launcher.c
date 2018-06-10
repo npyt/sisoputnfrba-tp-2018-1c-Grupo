@@ -46,7 +46,7 @@ int main(int argc, char **argv){
 	// END COORD CONNECTION
 
 	// PLANNER CONNECTION
-	int planner_socket = connect_with_server(config_get_string_value(config, "IP_PLAN"),
+	planner_socket = connect_with_server(config_get_string_value(config, "IP_PLAN"),
 			atoi(config_get_string_value(config, "PORT_PLAN")));
 	if (planner_socket < 0){
 		log_error(logger, " ERROR AL CONECTAR CON EL PLANIFICADOR");
@@ -59,10 +59,10 @@ int main(int argc, char **argv){
 	// END PLANNER CONNECTION
 
 	pthread_t listening_thread_coordinator;
-	pthread_create(&listening_thread_coordinator, NULL, coordinator_listening_thread);
+	pthread_create(&listening_thread_coordinator, NULL, coordinator_listening_thread, NULL);
 
 	pthread_t listening_thread_planner;
-	pthread_create(&listening_thread_planner, NULL, planner_listening_thread);
+	pthread_create(&listening_thread_planner, NULL, planner_listening_thread, NULL);
 
 
 	// LISTENING THREAD

@@ -7,6 +7,9 @@ FILE * fp;
 InstructionDetail last_instruction;
 int fp_beginning_li = 0;
 
+int coordinator_socket;
+int planner_socket;
+
 typedef struct {
 	int planner_socket;
 	int coord_socket;
@@ -30,7 +33,7 @@ int main(int argc, char **argv){
 	// END CONFIG
 
 	// COORD CONECTION
-	int coordinator_socket = connect_with_server(config_get_string_value(config, "IP_COORD"),
+	coordinator_socket = connect_with_server(config_get_string_value(config, "IP_COORD"),
 			atoi(config_get_string_value(config, "PORT_COORD")));
 	if (coordinator_socket < 0){
 		log_error(logger, " ERROR AL CONECTAR CON EL COORDINADOR");
@@ -55,12 +58,19 @@ int main(int argc, char **argv){
 	send_only_header(planner_socket, ESI_PLANNER_HANDSHAKE);
 	// END PLANNER CONNECTION
 
+	pthread_t listening_thread_coordinator;
+	pthread_create(&listening_thread_coordinator, NULL, coordinator_listening_thread);
+
+	pthread_t listening_thread_planner;
+	pthread_create(&listening_thread_planner, NULL, planner_listening_thread);
+
+
 	// LISTENING THREAD
-	SocketToListen * sockets_to_listen = malloc(sizeof(SocketToListen));
-	sockets_to_listen->coord_socket = coordinator_socket;
-	sockets_to_listen->planner_socket = planner_socket;
-	pthread_t listening_thread_id;
-	pthread_create(&listening_thread_id, NULL, listening_threads, sockets_to_listen);
+//	SocketToListen * sockets_to_listen = malloc(sizeof(SocketToListen));
+//	sockets_to_listen->coord_socket = coordinator_socket;
+//	sockets_to_listen->planner_socket = planner_socket;
+//	pthread_t listening_thread_id;
+//	pthread_create(&listening_thread_id, NULL, listening_threads, sockets_to_listen);
 	// END LISTENING THREAD
 
 	pthread_exit(NULL);
@@ -150,86 +160,164 @@ void parser(int coordinator_socket, int planner_socket){
 	}
 }
 
-void * listening_threads(SocketToListen * socket_to_listen){
-	int coordinator_socket = socket_to_listen->coord_socket;
-	int planner_socket = socket_to_listen->planner_socket;
-	fd_set master;
-	FD_ZERO(&master);
-	FD_SET(coordinator_socket, &master);
-	FD_SET(planner_socket, &master);
-	struct timeval tv;
-	int returning;
-	while(1){
-		returning = select(coordinator_socket+planner_socket+1, &master, NULL, NULL, NULL);
-		if(returning < 0){
-			log_error(logger, " ERRORRRR");
-			return -1;
-		}else{
-		if(FD_ISSET(coordinator_socket, &master)){
-			MessageHeader * header = malloc(sizeof(MessageHeader));
-			recv(coordinator_socket, header, sizeof(MessageHeader), 0);
-			switch((*header).type){
-				case ESI_COORD_HANDSHAKE_OK:
-					log_info(logger, "El COORDINADOR aceptó mi conexión");
-					fflush(stdout);
-					break;
-				case UNKNOWN_MSG_TYPE:
-					log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
-					fflush(stdout);
-					break;
-				case OPERATION_ERROR:
-					log_info(logger, "Me informan de ERROR");
-					send_only_header(coordinator_socket, ESI_EXECUTION_FINISHED);
-					// Terminar ejecución
-					fflush(stdout);
-					break;
-				default:
-					log_error(logger, "[UNKOWN_MESSAGE_RECIEVED]");
-					send_only_header(coordinator_socket, UNKNOWN_MSG_TYPE);
-					fflush(stdout);
-					break;
-			}
-		}
-		if(FD_ISSET(planner_socket, &master)){
-			MessageHeader * header = malloc(sizeof(MessageHeader));
-			recv(planner_socket, header, sizeof(MessageHeader), 0);
-			switch((*header).type) {
-				case PLANNER_ESI_RUN:
-					log_info(logger, "[RUNNING_OK_PARSING_NEW_SENTENCE]");
-					parser(coordinator_socket, planner_socket);
-					fflush(stdout);
-					break;
-				case PLANNER_ESI_RUN_LAST_OPERATION:
-					log_info(logger, "[RERUN_LAST_OPERATION]");
-					fseek(fp, fp_beginning_li, SEEK_SET);
-					parser(coordinator_socket, planner_socket);
-					break;
-				case ESI_PLANNER_HANDSHAKE_OK:
-					log_info(logger, "El PLANIFICADOR aceptó mi conexión");
+void * coordinator_listening_thread() {
 
-					// ========== RECV STRUCTURE REGISTRATION VARIATION ==========
-					//ESIRegistration * esi_name = malloc(sizeof(ESIRegistration));
-					//recv(server_socket, esi_name, sizeof(ESIRegistration), 0);
-					//log_info(logger, "[REGISTERED_AS_%s]", esi_name->id);
-					// ========== END RECV STRUCTURE REGISTRATION VARIATION ==========
-
-					char * esi_buffer_name[ESI_NAME_MAX_SIZE];
-					recv(planner_socket, esi_buffer_name, sizeof(ESI_NAME_MAX_SIZE), 0);
-					log_info(logger, "[REGISTERED_AS_%s]", esi_buffer_name);
-					strcpy(esi_name, esi_buffer_name);
-					fflush(stdout);
-					break;
-				case UNKNOWN_MSG_TYPE:
-					log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
-					fflush(stdout);
-					break;
-				default:
-					log_error(logger, "[UNKOWN_MESSAGE_RECIEVED]");
-					send_only_header(planner_socket, UNKNOWN_MSG_TYPE);
-					fflush(stdout);
-					break;
-			}
+	while(1) {
+		MessageHeader * header = malloc(sizeof(MessageHeader));
+		int rec = recv(coordinator_socket, header, sizeof(MessageHeader), 0);
+		//Procesar el resto del mensaje dependiendo del tipo recibido
+		switch((*header).type) {
+			case ESI_COORD_HANDSHAKE_OK:
+				log_info(logger, "El COORDINADOR aceptó mi conexión");
+				fflush(stdout);
+				break;
+			case UNKNOWN_MSG_TYPE:
+				log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
+				fflush(stdout);
+				break;
+			case OPERATION_ERROR:
+				log_info(logger, "Me informan de ERROR");
+				send_only_header(coordinator_socket, ESI_EXECUTION_FINISHED);
+				// Terminar ejecución
+				fflush(stdout);
+				break;
+			default:
+				log_error(logger, "[UNKOWN_MESSAGE_RECIEVED]");
+				send_only_header(coordinator_socket, UNKNOWN_MSG_TYPE);
+				fflush(stdout);
+				break;
 		}
-		}
+		free(header);
 	}
 }
+
+void * planner_listening_thread() {
+
+	while(1) {
+		MessageHeader * header = malloc(sizeof(MessageHeader));
+		int rec = recv(planner_socket, header, sizeof(MessageHeader), 0);
+		//Procesar el resto del mensaje dependiendo del tipo recibido
+		switch((*header).type) {
+		case PLANNER_ESI_RUN:
+			log_info(logger, "[RUNNING_OK_PARSING_NEW_SENTENCE]");
+			parser(coordinator_socket, planner_socket);
+			fflush(stdout);
+			break;
+		case PLANNER_ESI_RUN_LAST_OPERATION:
+			log_info(logger, "[RERUN_LAST_OPERATION]");
+			fseek(fp, fp_beginning_li, SEEK_SET);
+			parser(coordinator_socket, planner_socket);
+			break;
+		case ESI_PLANNER_HANDSHAKE_OK:
+			log_info(logger, "El PLANIFICADOR aceptó mi conexión");
+
+			// ========== RECV STRUCTURE REGISTRATION VARIATION ==========
+			//ESIRegistration * esi_name = malloc(sizeof(ESIRegistration));
+			//recv(server_socket, esi_name, sizeof(ESIRegistration), 0);
+			//log_info(logger, "[REGISTERED_AS_%s]", esi_name->id);
+			// ========== END RECV STRUCTURE REGISTRATION VARIATION ==========
+
+			char * esi_buffer_name[ESI_NAME_MAX_SIZE];
+			recv(planner_socket, esi_buffer_name, sizeof(ESI_NAME_MAX_SIZE), 0);
+			log_info(logger, "[REGISTERED_AS_%s]", esi_buffer_name);
+			strcpy(esi_name, esi_buffer_name);
+			fflush(stdout);
+			break;
+		case UNKNOWN_MSG_TYPE:
+			log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
+			fflush(stdout);
+			break;
+		default:
+			log_error(logger, "[UNKOWN_MESSAGE_RECIEVED]");
+			send_only_header(planner_socket, UNKNOWN_MSG_TYPE);
+			fflush(stdout);
+			break;
+		}
+		free(header);
+	}
+}
+
+
+//void * listening_threads(SocketToListen * socket_to_listen){
+//	int coordinator_socket = socket_to_listen->coord_socket;
+//	int planner_socket = socket_to_listen->planner_socket;
+//	fd_set master;
+//	FD_ZERO(&master);
+//	FD_SET(coordinator_socket, &master);
+//	FD_SET(planner_socket, &master);
+//	struct timeval tv;
+//	int returning;
+//	while(1){
+//		returning = select(coordinator_socket+planner_socket+1, &master, NULL, NULL, NULL);
+//		if(returning < 0){
+//			log_error(logger, " ERRORRRR");
+//			return -1;
+//		}else{
+//		if(FD_ISSET(coordinator_socket, &master)){
+//			MessageHeader * header = malloc(sizeof(MessageHeader));
+//			recv(coordinator_socket, header, sizeof(MessageHeader), 0);
+//			switch((*header).type){
+//				case ESI_COORD_HANDSHAKE_OK:
+//					log_info(logger, "El COORDINADOR aceptó mi conexión");
+//					fflush(stdout);
+//					break;
+//				case UNKNOWN_MSG_TYPE:
+//					log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
+//					fflush(stdout);
+//					break;
+//				case OPERATION_ERROR:
+//					log_info(logger, "Me informan de ERROR");
+//					send_only_header(coordinator_socket, ESI_EXECUTION_FINISHED);
+//					// Terminar ejecución
+//					fflush(stdout);
+//					break;
+//				default:
+//					log_error(logger, "[UNKOWN_MESSAGE_RECIEVED]");
+//					send_only_header(coordinator_socket, UNKNOWN_MSG_TYPE);
+//					fflush(stdout);
+//					break;
+//			}
+//		}
+//		if(FD_ISSET(planner_socket, &master)){
+//			MessageHeader * header = malloc(sizeof(MessageHeader));
+//			recv(planner_socket, header, sizeof(MessageHeader), 0);
+//			switch((*header).type) {
+//				case PLANNER_ESI_RUN:
+//					log_info(logger, "[RUNNING_OK_PARSING_NEW_SENTENCE]");
+//					parser(coordinator_socket, planner_socket);
+//					fflush(stdout);
+//					break;
+//				case PLANNER_ESI_RUN_LAST_OPERATION:
+//					log_info(logger, "[RERUN_LAST_OPERATION]");
+//					fseek(fp, fp_beginning_li, SEEK_SET);
+//					parser(coordinator_socket, planner_socket);
+//					break;
+//				case ESI_PLANNER_HANDSHAKE_OK:
+//					log_info(logger, "El PLANIFICADOR aceptó mi conexión");
+//
+//					// ========== RECV STRUCTURE REGISTRATION VARIATION ==========
+//					//ESIRegistration * esi_name = malloc(sizeof(ESIRegistration));
+//					//recv(server_socket, esi_name, sizeof(ESIRegistration), 0);
+//					//log_info(logger, "[REGISTERED_AS_%s]", esi_name->id);
+//					// ========== END RECV STRUCTURE REGISTRATION VARIATION ==========
+//
+//					char * esi_buffer_name[ESI_NAME_MAX_SIZE];
+//					recv(planner_socket, esi_buffer_name, sizeof(ESI_NAME_MAX_SIZE), 0);
+//					log_info(logger, "[REGISTERED_AS_%s]", esi_buffer_name);
+//					strcpy(esi_name, esi_buffer_name);
+//					fflush(stdout);
+//					break;
+//				case UNKNOWN_MSG_TYPE:
+//					log_error(logger, "[MY_MESSAGE_HASNT_BEEN_DECODED]");
+//					fflush(stdout);
+//					break;
+//				default:
+//					log_error(logger, "[UNKOWN_MESSAGE_RECIEVED]");
+//					send_only_header(planner_socket, UNKNOWN_MSG_TYPE);
+//					fflush(stdout);
+//					break;
+//			}
+//		}
+//		}
+//	}
+//}

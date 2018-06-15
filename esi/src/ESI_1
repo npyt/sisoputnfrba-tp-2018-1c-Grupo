@@ -1,0 +1,5 @@
+GET robbie:williams
+SET robbie:williams feel
+SET robbie:williams angels
+SET robbie:williams candy
+STORE robbie:williams

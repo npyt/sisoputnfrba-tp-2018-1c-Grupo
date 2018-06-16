@@ -11,6 +11,7 @@ t_list * resources;
 
 void * listening_thread(int server_socket);
 InstanceRegistration * get_instance_for_process(InstructionDetail * instruction);
+InstanceRegistration * search_instance_by_name(char name[INSTANCE_NAME_MAX]);
 
 int main(int argc, char **argv) {
 	if(argv[1] == NULL) {

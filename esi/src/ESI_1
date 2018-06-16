@@ -3,3 +3,6 @@ SET robbie:williams feel
 SET robbie:williams angels
 SET robbie:williams candy
 STORE robbie:williams
+GET futbol:messi
+SET futbol:messi eldiez
+STORE futbol:messi

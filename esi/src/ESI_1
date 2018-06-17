@@ -1,8 +1,3 @@
-GET robbie:williams
-SET robbie:williams feel
-SET robbie:williams angels
-SET robbie:williams candy
-STORE robbie:williams
 GET futbol:messi
-SET futbol:messi eldiez
+SET futbol:messi TraemeLaCopa
 STORE futbol:messi

@@ -17,6 +17,8 @@ int ESI_name_counter;
 void * listening_thread(int server_socket);
 void * running_thread(int a);
 void * w_thread(int a);
+float ratio(ESIRegistration * esi);
+t_list* map_list_for_hrrn();
 
 int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
@@ -29,7 +31,7 @@ int main(int argc, char **argv) {
 	logger = log_create("log.log", "PLANNER", false, LOG_LEVEL_TRACE);
 
 	settings.port = config_get_int_value(config, "PORT");
-	settings.alpha = config_get_int_value(config, "ALPHA");
+	settings.alpha = config_get_double_value(config, "ALPHA");
 	settings.init_est = config_get_int_value(config, "INIT_EST");
 	strcpy(settings.coord_ip, config_get_string_value(config, "COORD_IP"));
 	settings.coord_port = config_get_int_value(config, "COORD_PORT");
@@ -174,6 +176,10 @@ void * listening_thread(int server_socket) {
 							re->socket = incoming_socket;
 							re->rerun_last_instruction = 0;
 							re->status = S_READY;
+							re->estimation= settings.init_est;
+							re->waiting_counter=0;
+							re->job_counter=0;
+							re->response_ratio=0;
 							list_add(ready_queue, re);
 
 							header->type = HSK_ESI_PLANNER_OK;
@@ -266,6 +272,13 @@ void * listening_thread(int server_socket) {
 
 							running_esi->rerun_last_instruction = 0;
 							running_now = 0;
+
+							running_esi->job_counter++;
+							running_esi->estimation--;
+							print_and_log_trace(logger, "[JOB COUNTER][%d]", running_esi->job_counter);
+							print_and_log_trace(logger, "[ESTIMATION][%f]", running_esi->estimation);
+							ready_queue = map_list_for_hrrn();
+
 							break;
 						case ESI_FINISHED:
 							print_and_log_trace(logger, "[ESI_SAYS_ITS_DONE]");
@@ -305,7 +318,7 @@ void * running_thread(int a) {
 				running_now = 1;
 			}
 		}
-		sleep(4);
+		sleep(2);
 	}
 }
 
@@ -443,6 +456,39 @@ ESIRegistration * search_esi(int esi_id) {
 	return NULL;
 }
 
+float estimate(ESIRegistration*esi){
+	float alpha = settings.alpha;
+	float estimation = (alpha/100)*(esi->job_counter) + (1-(alpha/100))*(esi->estimation);
+	return estimation;
+}
+
+t_list* map_list_for_hrrn() {
+    ESIRegistration* _map_list_hrrn_info(ESIRegistration *one) {
+    	one->waiting_counter++;
+    	one->response_ratio=ratio(one);
+        return one;
+    }
+    return list_map(ready_queue, (void*)_map_list_hrrn_info);
+}
+
+float ratio(ESIRegistration * esi){
+	return (esi->waiting_counter + esi->estimation) / esi->estimation;
+}
+
+void sort_by_ratio() {
+    int _sort_ratio_esi(ESIRegistration *one, ESIRegistration *two) {
+        return (one->response_ratio>two->response_ratio);
+    }
+    list_sort(ready_queue, (void*)_sort_ratio_esi);
+}
+
+void sort_by_burst() {
+    int _sort_burst_esi(ESIRegistration *one, ESIRegistration *two) {
+        return (one->estimation<two->estimation);
+    }
+    list_sort(ready_queue, (void*)_sort_burst_esi);
+}
+
 void sort_queues() {
 	int a, b;
 	//At the end of the function, running_esi must be allocated
@@ -458,6 +504,7 @@ void sort_queues() {
 			}
 		}
 		if(re->status == S_READY) {
+			re->estimation = estimate(re);
 			list_add(ready_queue, list_remove(blocked_queue, a));
 		}
 	}
@@ -469,8 +516,10 @@ void sort_queues() {
 		case SJF_CD:
 			break;
 		case SJF_SD:
+			sort_by_burst();
 			break;
 		case HRRN:
+			sort_by_ratio();
 			break;
 	}
 

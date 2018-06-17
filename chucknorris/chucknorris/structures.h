@@ -122,6 +122,11 @@ typedef struct {
 	int socket;
 	int rerun_last_instruction;
 	ESIStatus status;
+
+	float estimation;
+	float response_ratio;
+	int job_counter;
+	int waiting_counter;
 } ESIRegistration;
 
 

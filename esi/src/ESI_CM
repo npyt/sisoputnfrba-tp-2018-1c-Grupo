@@ -1,0 +1,3 @@
+GET coldplay:chris
+SET coldplay:chris voice
+STORE coldplay:chris

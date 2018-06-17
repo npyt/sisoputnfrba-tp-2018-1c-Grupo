@@ -197,6 +197,7 @@ typedef struct {
 	char key[KEY_NAME_MAX];
 	int size;
 	int cell_id;
+	int cell_count;
 } ResourceStorage;
 
 #endif /* CHUCKNORRIS_STRUCTURES_H_ */

@@ -217,6 +217,7 @@ ResourceStorage * get_key(char key[KEY_NAME_MAX]) {
 	}
 	rs->cell_id = -1;
 	rs->size = 0;
+	rs->cell_count = 0;
 	strcpy(rs->key, key);
 
 	print_and_log_trace(logger, "[ALLOCATED_NEW_KEY][%s]", rs->key);
@@ -225,28 +226,94 @@ ResourceStorage * get_key(char key[KEY_NAME_MAX]) {
 	return rs;
 }
 
+int are_there_n_free_cells_from(int start_index, int n_cells) {
+	int a = start_index;
+	if(start_index + n_cells > (entry_settings.entry_count-1)) {
+		return 0;
+	}
+	for( ; a<start_index+n_cells ; a++) {
+		StorageCell * cell = list_get(storage_cells, a);
+		if(cell->content_size != 0) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+int are_there_n_atomic_or_free_cells_from(int start_index, int n_cells) {
+	int a = start_index;
+	if(start_index + n_cells > (entry_settings.entry_count-1)) {
+		return 0;
+	}
+	for( ; a<start_index+n_cells ; a++) {
+		StorageCell * cell = list_get(storage_cells, a);
+		if(cell->content_size != 0 || cell->atomic_value == 1) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
 int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
+	int bytes_needed = strlen(value) * sizeof(char);
+	float cells_nedded_f = (float)bytes_needed / (float)entry_settings.entry_size;
+	int cells_nedded = bytes_needed / entry_settings.entry_size;
+
+	if(cells_nedded_f > cells_nedded) {
+		cells_nedded++;
+	}
 	if(rs->cell_id == -1) { //If its first SET op on key
-		last_used_cell++;
-		if(last_used_cell == storage_cells->elements_count) {
-			last_used_cell = 0;
+		if(cells_nedded > entry_settings.entry_count) {
+			return -1;
 		}
 
-		StorageCell * cell_t_a = list_get(storage_cells, last_used_cell);
+		last_used_cell++;
+		if(last_used_cell == storage_cells->elements_count) { last_used_cell = 0; }
+		if(are_there_n_free_cells_from(last_used_cell, cells_nedded) == 1) {
+			rs->cell_id = last_used_cell;
+		} else {
+			int tries, final_index = -1;
+			switch(settings.replacement_alg) {
+				case CIRC:
+					for(tries=0 ; tries<entry_settings.entry_count && final_index == -1; tries++) {
+						last_used_cell++;
+						if(last_used_cell == storage_cells->elements_count) { last_used_cell = 0; }
+						if(are_there_n_atomic_or_free_cells_from(last_used_cell, cells_nedded) == 1) {
+							final_index = last_used_cell;
+						}
+					}
+					break;
+				case LRU:
+					break;
+				case BSU:
+					break;
+			}
+			rs->cell_id = final_index;
+		}
 
-		rs->cell_id = cell_t_a->id;
 	}
+
 	rs->size = strlen(value) * sizeof(char);
+	rs->cell_count = cells_nedded;
 
-	StorageCell * cell = list_get(storage_cells, rs->cell_id);
+	print_and_log_trace(logger, "[START_ALLOCATION][KEY_%s][INIT_ENTRY_%d]", rs->key, rs->cell_id);
 
-	//TODO non atomics
-	cell->atomic_value = 1;
-	cell->content_size = strlen(value) * sizeof(char);
-	cell->content = malloc(cell->content_size);
-	strcpy(cell->content, value);
+	for(int q=0 ; q<cells_nedded ;q++) {
+		//TODO Clear resources using this cell
 
-	print_and_log_trace(logger, "[ALLOCATED_KEY_VALUE][KEY_%s][INIT_ENTRY_%d][VALUE_%s]", rs->key, cell->id, cell->content);
+		StorageCell * cell = list_get(storage_cells, rs->cell_id + q);
+		if(cells_nedded == 1) {
+			cell->atomic_value = 1;
+		} else {
+			cell->atomic_value = 0;
+		}
+		cell->content_size = entry_settings.entry_size;
+		cell->content = malloc(cell->content_size);
+		memcpy(cell->content, value+q*entry_settings.entry_size, entry_settings.entry_size);
+
+		print_and_log_trace(logger, "[ENTRY_%d][VALUE_%s]", cell->id, cell->content);
+	}
+
 	fflush(stdout);
 
 	return 1;
@@ -262,16 +329,14 @@ int dump_storage(ResourceStorage * rs) {
 	char * file_name = malloc(sizeof(char) * ( strlen(settings.mounting_point) + strlen(settings.name) + KEY_NAME_MAX + 3 ));
 	strcpy(file_name, settings.mounting_point);
 	strcat(file_name, rs->key);
-	strcat(file_name, ".txt");
 
 
 	FILE * fd = fopen(file_name, "wb+");
 	if(rs->size != 0) {
-
-		StorageCell * cell = list_get(storage_cells, rs->cell_id);
-		fwrite(cell->content, cell->content_size, 1, fd);
-		//TODO non atomics
-
+		for(int q=0 ; q<rs->cell_count ; q++) {
+			StorageCell * cell = list_get(storage_cells, rs->cell_id + q);
+			fwrite(cell->content, cell->content_size, 1, fd);
+		}
 	} else {
 		//No content
 	}

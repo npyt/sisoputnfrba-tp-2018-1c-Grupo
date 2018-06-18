@@ -1,0 +1,43 @@
+cd
+mkdir inst1
+mkdir inst2
+
+cd tp-2018-1c-Grupo
+
+git clone https://github.com/sisoputnfrba/so-commons-library.git
+cd so-commons-library
+sudo make install
+cd ..
+git clone https://github.com/sisoputnfrba/parsi.git
+cd parsi
+sudo make install
+cd ..
+
+cd tp-2018-1c-Grupo
+cd chucknorris
+sudo make install
+cd ..
+
+cd coordinator/src
+make
+cd ..
+cd ..
+
+cd esi/src
+make
+cd ..
+cd ..
+
+cd instance/src
+make
+cd ..
+cd ..
+
+cd planner/src
+make
+cd ..
+cd ..
+
+clear
+
+echo ”Listorti Compilacion”

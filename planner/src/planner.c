@@ -274,7 +274,6 @@ void * listening_thread(int server_socket) {
 							running_esi->rerun_last_instruction = 0;
 							running_now = 0;
 
-							running_esi->job_counter++;
 							if(running_esi->estimation)
 								running_esi->estimation--;
 							print_and_log_trace(logger, "[JOB COUNTER][%d]", running_esi->job_counter);
@@ -314,6 +313,7 @@ void * running_thread(int a) {
 		if (get_running_flag()) {
 			if(running_esi != NULL && !running_now) {
 				print_and_log_trace(logger, "[ESI_WILL_EXECUTE][%d]", running_esi->esi_id);
+				running_esi->job_counter++;
 				if(running_esi->rerun_last_instruction) {
 					send_message_type(running_esi->socket, EXECUTE_PREV_INSTRUCTION);
 				} else {

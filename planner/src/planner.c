@@ -189,6 +189,7 @@ void * listening_thread(int server_socket) {
 
 
 							print_and_log_trace(logger, "[ASSIGNED_ID_%d]", re->esi_id);
+							print_and_log_trace(logger, "[ASSIGNED_ESTIMATION_%f]", re->estimation);
 							break;
 						case INSTRUCTION_PERMISSION:
 							print_and_log_trace(logger, "[COORDINATOR_ASKS_FOR_PERMISSION_TO_EXECUTE]");
@@ -274,7 +275,8 @@ void * listening_thread(int server_socket) {
 							running_now = 0;
 
 							running_esi->job_counter++;
-							running_esi->estimation--;
+							if(running_esi->estimation)
+								running_esi->estimation--;
 							print_and_log_trace(logger, "[JOB COUNTER][%d]", running_esi->job_counter);
 							print_and_log_trace(logger, "[ESTIMATION][%f]", running_esi->estimation);
 							ready_queue = map_list_for_hrrn();
@@ -285,10 +287,12 @@ void * listening_thread(int server_socket) {
 							int esi_f_id;
 							recieve_data(incoming_socket, &esi_f_id, sizeof(int));
 							print_and_log_trace(logger, "[ESI_ID_%d]", esi_f_id);
+
 							//TODO Liberar recursos geteados por el ESI
 
 							if(running_esi->esi_id == esi_f_id) {
 								running_esi->status = S_FINISHED;
+								print_and_log_trace(logger, "[FINAL ESTIMATION][%f]", running_esi->estimation);
 							}
 							running_esi = NULL;
 							running_now = 0;
@@ -306,8 +310,8 @@ void * listening_thread(int server_socket) {
 
 void * running_thread(int a) {
 	while(1) {
+		sort_queues();
 		if (get_running_flag()) {
-			sort_queues();
 			if(running_esi != NULL && !running_now) {
 				print_and_log_trace(logger, "[ESI_WILL_EXECUTE][%d]", running_esi->esi_id);
 				if(running_esi->rerun_last_instruction) {
@@ -318,7 +322,7 @@ void * running_thread(int a) {
 				running_now = 1;
 			}
 		}
-		sleep(2);
+		sleep(1);
 	}
 }
 
@@ -483,10 +487,11 @@ void sort_by_ratio() {
 }
 
 void sort_by_burst() {
-    int _sort_burst_esi(ESIRegistration *one, ESIRegistration *two) {
+    bool _sort_burst_esi(ESIRegistration * one, ESIRegistration * two) {
         return (one->estimation<two->estimation);
     }
-    list_sort(ready_queue, (void*)_sort_burst_esi);
+    if(list_size(ready_queue)>0)
+    	list_sort(ready_queue, (void*)_sort_burst_esi);
 }
 
 void sort_queues() {
@@ -505,6 +510,7 @@ void sort_queues() {
 		}
 		if(re->status == S_READY) {
 			re->estimation = estimate(re);
+			print_and_log_trace(logger, "[NUEVA ESTIMACION][%f]", re->estimation);
 			list_add(ready_queue, list_remove(blocked_queue, a));
 		}
 	}
@@ -514,6 +520,11 @@ void sort_queues() {
 		case FIFO: //FIFO Alg, the queue remains like it was built
 			break;
 		case SJF_CD:
+			if(running_esi){
+				list_add(ready_queue, running_esi);
+				running_esi = NULL;
+				sort_by_burst();
+			}
 			break;
 		case SJF_SD:
 			sort_by_burst();
@@ -522,7 +533,6 @@ void sort_queues() {
 			sort_by_ratio();
 			break;
 	}
-
 	if(!list_is_empty(ready_queue) && running_esi == NULL) {
 		running_esi = list_remove(ready_queue, 0);
 		running_esi->status = S_RUNNING;

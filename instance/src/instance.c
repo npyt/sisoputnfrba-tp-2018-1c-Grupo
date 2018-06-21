@@ -169,33 +169,19 @@ void load_previous_keys() {
 int process_instruction(InstructionDetail * instruction) {
 	ResourceStorage * rs = malloc(sizeof(ResourceStorage));
 	switch(instruction->type) {
-		/*case GET_OP:
-			found = 0;
-			for(a=0 ; a<resources->elements_count ; a++) {
-				ResourceStorage * rs = list_get(resources, a);
-				if(strcmp(rs->key, instruction->key) == 0) {
-					found = 1;
-					break;
-				}
-			}
-			if(found == 1) {
-				return 1;
-			} else {
-				return get_key(instruction->key);
-			}
-			break;*/ //Instance doesnt process GET op, Issue #1082
+		//Instance doesnt process GET op, Issue #1082
 		case SET_OP:
 			if((rs = get_key(instruction->key)) != NULL) {
-				return set_storage(rs, instruction->opt_value);
+				set_storage(rs, instruction->opt_value);
 			} else {
-				return -1;
+				return 0;
 			}
 			break;
 		case STORE_OP:
 			if((rs = get_key(instruction->key)) != NULL) {
-				return store_storage(rs);
+				store_storage(rs);
 			} else {
-				return -1;
+				return 0;
 			}
 			break;
 	}
@@ -207,23 +193,27 @@ void compact() {
 }
 
 ResourceStorage * get_key(char key[KEY_NAME_MAX]) {
-	int a;
-	ResourceStorage * rs = malloc(sizeof(ResourceStorage));
+	int a, found = 0;
 	for(a=0 ; a<resources->elements_count ; a++) {
-		rs = list_get(resources, a);
+		ResourceStorage * rs = list_get(resources, a);
 		if(strcmp(rs->key, key) == 0) {
+			found = 1;
 			return rs;
 		}
 	}
-	rs->cell_id = -1;
-	rs->size = 0;
-	rs->cell_count = 0;
-	strcpy(rs->key, key);
+	if(found == 0) {
+		ResourceStorage * rs = malloc(sizeof(ResourceStorage));
+		rs->cell_id = -1;
+		rs->size = 0;
+		rs->cell_count = 0;
+		strcpy(rs->key, key);
 
-	print_and_log_trace(logger, "[ALLOCATED_NEW_KEY][%s]", rs->key);
-	list_add(resources, rs);
+		print_and_log_trace(logger, "[ALLOCATED_NEW_KEY][%s]", rs->key);
+		list_add(resources, rs);
 
-	return rs;
+		return rs;
+	}
+	return NULL;
 }
 
 int are_there_n_free_cells_from(int start_index, int n_cells) {
@@ -258,10 +248,10 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 	int bytes_needed = strlen(value) * sizeof(char);
 	float cells_nedded_f = (float)bytes_needed / (float)entry_settings.entry_size;
 	int cells_nedded = bytes_needed / entry_settings.entry_size;
-
 	if(cells_nedded_f > cells_nedded) {
 		cells_nedded++;
 	}
+
 	if(rs->cell_id == -1) { //If its first SET op on key
 		if(cells_nedded > entry_settings.entry_count) {
 			return -1;
@@ -294,6 +284,12 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 	}
 
 	rs->size = strlen(value) * sizeof(char);
+	for(int q=0 ; q<rs->cell_count ; q++) { //Clear prior cells
+		StorageCell * cell = list_get(storage_cells, rs->cell_id + q);
+		cell->atomic_value = 0;
+		cell->content = NULL;
+		cell->content_size = 0;
+	}
 	rs->cell_count = cells_nedded;
 
 	print_and_log_trace(logger, "[START_ALLOCATION][KEY_%s][INIT_ENTRY_%d]", rs->key, rs->cell_id);
@@ -314,14 +310,11 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 		print_and_log_trace(logger, "[ENTRY_%d][VALUE_%s]", cell->id, cell->content);
 	}
 
-	fflush(stdout);
-
 	return 1;
 }
 
 int store_storage(ResourceStorage * rs) {
 	print_and_log_trace(logger, "[STORED_KEY][%s]", rs->key);
-
 	return dump_storage(rs);
 }
 

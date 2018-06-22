@@ -14,8 +14,8 @@
 
 ## Branches
 
-* [**Master**](https://github.com/sisoputnfrba/tp-2018-1c-Grupo) : <font color="red">DEPRECATED</font>
-* [**CarlosBranchi** ](https://github.com/sisoputnfrba/tp-2018-1c-Grupo/tree/carlosbranchi): <font color="lightblue">ACTUAL</font>
+* [**Master**](https://github.com/sisoputnfrba/tp-2018-1c-Grupo) : **DEPRECATED**  ![#f03c15](https://placehold.it/15/f03c15/000000?text=+) `#f03c15`
+* [**CarlosBranchi** ](https://github.com/sisoputnfrba/tp-2018-1c-Grupo/tree/carlosbranchi): **ACTUAL** ![#1589F0](https://placehold.it/15/1589F0/000000?text=+) `#1589F0`
 
 ## CheckPoints
 

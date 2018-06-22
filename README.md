@@ -1,16 +1,21 @@
 # Trabajo Práctico - Sistemas Operativos - 2018 1C
 ### TP-2018-1C-GRUPO
 
+* [Enunciado](https://sisoputnfrba.gitbook.io/re-distinto/) - Re Distinto (2018-1c) GitBook
+* [Foro](https://github.com/sisoputnfrba/foro/issues) - Issues
+
+## Integrantes
+
 * [dantebado](https://github.com/dantebado) - Dante Bado
 * [theMec](https://github.com/theMec) - Martín Calviello
 * [Magli44](https://github.com/Magli44) - Matías Iglesias
 * [npyt](https://github.com/npyt) - Ramiro Maranzana
 * [rangolucas](https://github.com/rangolucas) - Lucas Rango
 
-## Links
+## Branches
 
-* [Enunciado](https://sisoputnfrba.gitbook.io/re-distinto/) - Re Distinto (2018-1c) GitBook
-* [Foro](https://github.com/sisoputnfrba/foro/issues) - Issues
+* [**Master**](https://github.com/sisoputnfrba/tp-2018-1c-Grupo) : <font color="red">DEPRECATED</font>
+* [**CarlosBranchi** ](https://github.com/sisoputnfrba/tp-2018-1c-Grupo/tree/carlosbranchi): <font color="lightblue">ACTUAL</font>
 
 ## CheckPoints
 

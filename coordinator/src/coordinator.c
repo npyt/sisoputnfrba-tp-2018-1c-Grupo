@@ -81,13 +81,14 @@ void * listening_thread(int server_socket) {
 		for(a=0 ; a<MAX_SERVER_CLIENTS ; a++) {
 			if(clients[a] > 0) {
 				FD_SET(clients[a], &master_set);
+				print_and_log_trace(logger, "[SOCKET][%d]", clients[a]);
 				if(max_sd < clients[a]) {
 					max_sd = clients[a];
 				}
 			}
 		}
-
 		activity_socket = select(max_sd + 1, &master_set, NULL, NULL, NULL);
+		print_and_log_trace(logger, "[PELADO SAMPAOLI]");
 
 		if(FD_ISSET(server_socket, &master_set)) {
 			incoming_socket = server_socket;
@@ -101,8 +102,7 @@ void * listening_thread(int server_socket) {
 			print_and_log_trace(logger, "[INCOMING_CONNECTION]", incoming_socket);
 
 			for(a=0 ; a<MAX_SERVER_CLIENTS; a++) {
-				if(clients[a] != 0) {
-					fflush(stdout);
+				if(clients[a] == 0) {
 					clients[a] = incoming_socket;
 					break;
 				}
@@ -112,6 +112,7 @@ void * listening_thread(int server_socket) {
 		}
 		for(a=0 ; a<MAX_SERVER_CLIENTS ; a++) {
 			if(FD_ISSET(clients[a], &master_set)) {
+
 				incoming_socket = clients[a];
 				//From another client
 				//Recieve Header
@@ -120,7 +121,7 @@ void * listening_thread(int server_socket) {
 					//Disconnected
 
 
-					close(clients[a]);
+					clients[a] = 0;
 					print_and_log_trace(logger, "[SOCKET_DISCONNECTED]");
 				} else {
 					//New message
@@ -165,7 +166,6 @@ void * listening_thread(int server_socket) {
 								break;
 						case HSK_ESI_COORD:
 							print_and_log_trace(logger, "[NEW_ESI_CONNECTION]");
-
 							header->type = HSK_ESI_COORD_OK;
 							send_header(incoming_socket, header);
 							break;
@@ -214,7 +214,6 @@ void * listening_thread(int server_socket) {
 														ra->type = RELEASED;
 													}
 													strcpy(ra->key, instruction->key);
-
 													header->type = NEW_RESOURCE_ALLOCATION;
 													send_header_and_data(settings.planner_socket, header, ra, sizeof(ResourceAllocation));
 													free(ra);
@@ -235,9 +234,9 @@ void * listening_thread(int server_socket) {
 										ra->esi_id = instruction->esi_id;
 										ra->type = BLOCKED;
 										strcpy(ra->key, instruction->key);
-
 										header->type = NEW_RESOURCE_ALLOCATION;
 										send_header_and_data(settings.planner_socket, header, ra, sizeof(ResourceAllocation));
+
 										free(ra);
 									} else { //Failed instruction : unknown key by coordinator
 										print_and_log_trace(logger, "[OPERATION_FAILED][INFORMING_ESI]");

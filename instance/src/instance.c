@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
 		//exit_with_message("No especificó el archivo de configuración.", EXIT_FAILURE);
 		argv[1] = malloc(sizeof(char) * 1024);
-		strcpy(argv[1], "config.cfg");
+		strcpy(argv[1], "config2.cfg");
 	}
 
 	config = config_create(argv[1]);
@@ -91,7 +91,7 @@ void * listening_thread(int coordinator_socket) {
 					//Disconnected
 
 
-					close(clients[a]);
+					clients[a] = 0;
 					print_and_log_trace(logger, "[SOCKET_DISCONNECTED]");
 				} else {
 					//New message
@@ -101,7 +101,7 @@ void * listening_thread(int coordinator_socket) {
 					switch(i_header->type) {
 						case HSK_INST_COORD_OK :
 							print_and_log_trace(logger, "[COORDINATOR_SAYS_HI]");
-
+							print_and_log_trace(logger, "[REPORTING AS %s]", settings.name);
 							recieve_data(incoming_socket, &entry_settings, sizeof(InstanceData));
 
 							print_and_log_trace(logger, "[COORDINATOR_GIVES_CONFIG][%d_ENTRIES][%d_SIZE]", entry_settings.entry_count, entry_settings.entry_size);

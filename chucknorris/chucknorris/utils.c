@@ -3,15 +3,15 @@
 void print_instruction(InstructionDetail * instruction) {
 	switch(instruction->type) {
 		case GET_OP:
-			//printf("Instrucción GET sobre %s ESI %d\n", instruction->key, instruction->esi_id);
+			printf("Instrucción GET sobre %s ESI %d\n", instruction->key, instruction->esi_id);
 			fflush(stdout);
 			break;
 		case SET_OP:
-			//printf("Instrucción SET sobre %s ESI %d valor %s\n", instruction->key, instruction->esi_id, instruction->opt_value);
+			printf("Instrucción SET sobre %s ESI %d valor %s\n", instruction->key, instruction->esi_id, instruction->opt_value);
 			fflush(stdout);
 			break;
 		case STORE_OP:
-			//printf("Instrucción STORE sobre %s ESI %d\n", instruction->key, instruction->esi_id);
+			printf("Instrucción STORE sobre %s ESI %d\n", instruction->key, instruction->esi_id);
 			fflush(stdout);
 			break;
 	}

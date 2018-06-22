@@ -50,6 +50,7 @@ int main(int argc, char **argv) {
 	}
 	free(buffer);
 
+
 	ESI_name_counter = 0;
 	running_esi = NULL;
 	ready_queue = list_create();
@@ -135,7 +136,7 @@ void * listening_thread(int server_socket) {
 			print_and_log_trace(logger, "[INCOMING_CONNECTION]", incoming_socket);
 
 			for(a=0 ; a<MAX_SERVER_CLIENTS ; a++) {
-				if(clients[a] != 0) {
+				if(clients[a] == 0) {
 					clients[a] = incoming_socket;
 					break;
 				}
@@ -153,7 +154,7 @@ void * listening_thread(int server_socket) {
 					//Disconnected
 
 
-					close(clients[a]);
+					clients[a] = 0;
 					print_and_log_trace(logger, "[SOCKET_DISCONNECTED]");
 				} else {
 					//New message
@@ -460,6 +461,31 @@ ESIRegistration * search_esi(int esi_id) {
 	return NULL;
 }
 
+t_list * search_esis_waiting_for(char key[KEY_NAME_MAX]) {
+	int a;
+	t_list * list = list_create();
+	for(a=allocations->elements_count-1 ; 0<=a ; a--) {
+		ResourceAllocation * ra = list_get(allocations, a);
+		if(strcmp(ra->key, key) == 0 &&
+				ra->type == WAITING) {
+			list_add(list, ra);
+		}
+	}
+	return list;
+}
+
+int key_exists(char key[KEY_NAME_MAX]) {
+	int a;
+	for(a=allocations->elements_count-1 ; 0<=a ; a--) {
+		ResourceAllocation * ra = list_get(allocations, a);
+		if(strcmp(ra->key, key) == 0 &&
+				ra->type == BLOCKED) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
 float estimate(ESIRegistration*esi){
 	float alpha = settings.alpha;
 	float estimation = (alpha/100)*(esi->job_counter) + (1-(alpha/100))*(esi->estimation);
@@ -487,7 +513,7 @@ void sort_by_ratio() {
 }
 
 void sort_by_burst() {
-    bool _sort_burst_esi(ESIRegistration * one, ESIRegistration * two) {
+    int _sort_burst_esi(ESIRegistration * one, ESIRegistration * two) {
         return (one->estimation<two->estimation);
     }
     if(list_size(ready_queue)>0)
@@ -510,7 +536,7 @@ void sort_queues() {
 		}
 		if(re->status == S_READY) {
 			re->estimation = estimate(re);
-			print_and_log_trace(logger, "[NUEVA ESTIMACION][%f]", re->estimation);
+			print_and_log_trace(logger, "[NEW ESTIMATION][%f]", re->estimation);
 			list_add(ready_queue, list_remove(blocked_queue, a));
 		}
 	}
@@ -540,27 +566,4 @@ void sort_queues() {
 
 }
 
-t_list * search_esis_waiting_for(char key[KEY_NAME_MAX]) {
-	int a;
-	t_list * list = list_create();
-	for(a=allocations->elements_count-1 ; 0<=a ; a--) {
-		ResourceAllocation * ra = list_get(allocations, a);
-		if(strcmp(ra->key, key) == 0 &&
-				ra->type == WAITING) {
-			list_add(list, ra);
-		}
-	}
-	return list;
-}
 
-int key_exists(char key[KEY_NAME_MAX]) {
-	int a;
-	for(a=allocations->elements_count-1 ; 0<=a ; a--) {
-		ResourceAllocation * ra = list_get(allocations, a);
-		if(strcmp(ra->key, key) == 0 &&
-				ra->type == BLOCKED) {
-			return 1;
-		}
-	}
-	return 0;
-}

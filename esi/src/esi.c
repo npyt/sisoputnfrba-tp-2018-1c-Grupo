@@ -77,6 +77,7 @@ void parse_next_instruction() {
 		send_data(settings.planner_socket, &settings.id, sizeof(int));
 		finished = 1;
 		print_and_log_trace(logger, "[END_EXECUTION]");
+		exit_with_message("[EXIT]", EXIT_SUCCESS);
 	}
 }
 
@@ -125,7 +126,7 @@ void * listening_thread() {
 					//Disconnected
 
 
-					close(clients[a]);
+					//close(clients[a]);
 					print_and_log_trace(logger, "[SOCKET_DISCONNECTED]");
 				} else {
 					//New message
@@ -149,6 +150,7 @@ void * listening_thread() {
 							print_and_log_trace(logger, "[COORDINATOR_COMMANDS_ME_TO_ABORT]");
 							finished = 1;
 							send_message_type(settings.planner_socket, ESI_FINISHED);
+							exit_with_message("[EXIT]", EXIT_FAILURE);
 							break;
 						case EXECUTE_NEXT_INSTRUCTION:
 							parse_next_instruction();

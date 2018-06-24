@@ -1,24 +1,25 @@
 #include <chucknorris/allheaders.h>
 #include "console.h"
 
+//Init
 t_config * config;
 t_log * logger;
 t_list * allocations;
-
 t_list * ready_queue;
 t_list * blocked_queue;
 ESIRegistration * running_esi;
-int running_now;
-
 PlannerConfig settings;
 
+//Flags
 int ESI_name_counter;
+int running_now;
 
 void * listening_thread(int server_socket);
 void * running_thread(int a);
 void * w_thread(int a);
 float ratio(ESIRegistration * esi);
 t_list* map_list_for_hrrn();
+
 
 int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
@@ -27,9 +28,11 @@ int main(int argc, char **argv) {
 		strcpy(argv[1], "config.cfg");
 	}
 
+	// Creating log and config files
 	config = config_create(argv[1]);
 	logger = log_create("log.log", "PLANNER", false, LOG_LEVEL_TRACE);
 
+	// Reading config file
 	settings.port = config_get_int_value(config, "PORT");
 	settings.alpha = config_get_double_value(config, "ALPHA");
 	settings.init_est = config_get_int_value(config, "INIT_EST");
@@ -50,20 +53,21 @@ int main(int argc, char **argv) {
 	}
 	free(buffer);
 
-
+	// First flag and queues inits
 	ESI_name_counter = 0;
 	running_esi = NULL;
+	running_now = 0;
 	ready_queue = list_create();
 	blocked_queue = list_create();
 
-	running_now = 0;
-
+	// Starting Server Socket
 	int my_socket = prepare_socket_in_port(settings.port);
 	if (my_socket == -1) {
 		print_and_log_trace(logger, "[FAILED_TO_OPEN_PLANNER_PORT]");
 		exit(EXIT_FAILURE);
 	}
 
+	// Threads
 	pthread_t running_thread_id;
 	pthread_create(&running_thread_id, NULL, running_thread, NULL);
 
@@ -73,12 +77,12 @@ int main(int argc, char **argv) {
 	pthread_t console_thread_id;
 	pthread_create(&console_thread_id, NULL, planner_console_launcher, NULL);
 
-	pthread_t w_thread_id;
-	pthread_create(&w_thread_id, NULL, w_thread, my_socket);
+//	// Test thread
+//	pthread_t w_thread_id;
+//	pthread_create(&w_thread_id, NULL, w_thread, my_socket);
 
+	// Exit
 	pthread_exit(NULL);
-
-
 	return EXIT_SUCCESS;
 }
 
@@ -172,6 +176,7 @@ void * listening_thread(int server_socket) {
 						case HSK_ESI_PLANNER:
 							print_and_log_trace(logger, "[NEW_ESI_CONNECTION]");
 
+							// Registrate ESI
 							ESIRegistration * re = malloc(sizeof(ESIRegistration));
 							re->esi_id = ESI_name_counter;
 							re->socket = incoming_socket;
@@ -183,11 +188,11 @@ void * listening_thread(int server_socket) {
 							re->response_ratio=0;
 							list_add(ready_queue, re);
 
+							// Response
 							header->type = HSK_ESI_PLANNER_OK;
 							send_header(incoming_socket, header);
 							send_data(incoming_socket, &ESI_name_counter, sizeof(int));
 							ESI_name_counter++;
-
 
 							print_and_log_trace(logger, "[ASSIGNED_ID_%d]", re->esi_id);
 							print_and_log_trace(logger, "[ASSIGNED_ESTIMATION_%f]", re->estimation);
@@ -275,16 +280,23 @@ void * listening_thread(int server_socket) {
 							running_esi->rerun_last_instruction = 0;
 							running_now = 0;
 
+							// Subtract estimation
 							if(running_esi->estimation)
 								running_esi->estimation--;
+
 							print_and_log_trace(logger, "[JOB COUNTER][%d]", running_esi->job_counter);
 							print_and_log_trace(logger, "[ESTIMATION][%f]", running_esi->estimation);
-							ready_queue = map_list_for_hrrn();
+
+							// Prepare ratio for HRRN
+							if(settings.planning_alg == HRRN)
+								ready_queue = map_list_for_hrrn();
 
 							break;
 						case ESI_FINISHED:
 							print_and_log_trace(logger, "[ESI_SAYS_ITS_DONE]");
+
 							int esi_f_id;
+
 							recieve_data(incoming_socket, &esi_f_id, sizeof(int));
 							print_and_log_trace(logger, "[ESI_ID_%d]", esi_f_id);
 
@@ -310,9 +322,12 @@ void * listening_thread(int server_socket) {
 
 void * running_thread(int a) {
 	while(1) {
+		// Sort
 		sort_queues();
+		// Verify running state
 		if (get_running_flag()) {
 			if(running_esi != NULL && !running_now) {
+				// Run ESI in running
 				print_and_log_trace(logger, "[ESI_WILL_EXECUTE][%d]", running_esi->esi_id);
 				running_esi->job_counter++;
 				if(running_esi->rerun_last_instruction) {
@@ -540,30 +555,29 @@ void sort_queues() {
 			list_add(ready_queue, list_remove(blocked_queue, a));
 		}
 	}
-
-	//TODO First sort queues by algorithm
+	// Switch between planner algorithms
 	switch(settings.planning_alg) {
 		case FIFO: //FIFO Alg, the queue remains like it was built
 			break;
-		case SJF_CD:
+		case SJF_CD: //SJF CD Alg, the queue is sorted by job burst with deallocation
 			if(running_esi){
 				list_add(ready_queue, running_esi);
 				running_esi = NULL;
 				sort_by_burst();
 			}
 			break;
-		case SJF_SD:
+		case SJF_SD: //SJF SD Alg, the queue is sorted by job burst without deallocation
 			sort_by_burst();
 			break;
-		case HRRN:
+		case HRRN: //HRRN Alg, the queue is sorted by response ratio without deallocation
 			sort_by_ratio();
 			break;
 	}
+	// Run the first in ready queue
 	if(!list_is_empty(ready_queue) && running_esi == NULL) {
 		running_esi = list_remove(ready_queue, 0);
 		running_esi->status = S_RUNNING;
 	}
-
 }
 
 

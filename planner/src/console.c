@@ -102,9 +102,7 @@ int circular_chain(ResourceAllocation * ra, ResourceAllocation * cycle_head){
 
 	if(key_owner->esi_id == cycle_head->esi_id) return 1;
 
-	if(circular_chain(key_owner, cycle_head)) return 1;
-
-	return 0;
+	return circular_chain(key_owner, cycle_head);
 }
 
 ResourceAllocation * find_allocation_node(int esi_id, int type){

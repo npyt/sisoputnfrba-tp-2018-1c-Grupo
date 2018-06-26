@@ -43,6 +43,7 @@ int parse(char **, char **, char **);
 void execute(int, char*, char*);
 int find_in_array(char*, const char**, int);
 void string_tolower(char*);
-int circular_chain(ResourceAllocation* ra, ResourceAllocation* cycle_head);
+int deadlock_check(ResourceAllocation*);
+int circular_chain(ResourceAllocation* cycle_element, int cycle_head_id);
 
 #endif /* CONSOLE_H_ */

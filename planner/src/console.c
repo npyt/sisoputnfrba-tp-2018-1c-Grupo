@@ -79,13 +79,20 @@ void deadlock(){
 
 	for(int i = 0; i < waiting_allocations->elements_count; i++){
 		ra = list_get(waiting_allocations, i);
-		if(circular_chain(ra, ra)) printf("- ESI nro %d", ra->esi_id);
+		if(deadlock_check(ra)) printf("- ESI nro %d", ra->esi_id);
 	}
 
 	list_destroy(waiting_allocations);
 }
 
-int circular_chain(ResourceAllocation * ra, ResourceAllocation * cycle_head){
+int deadlock_check(ResourceAllocation * waiting_esi){
+	ResourceAllocation * key_owner =
+			find_allocation_node(get_owner_esi(waiting_esi->key), BLOCKED);
+
+	return circular_chain(key_owner, waiting_esi->esi_id);
+}
+
+int circular_chain(ResourceAllocation * cycle_element, int cycle_head_id){
 
 	/*
 	 * Devuelve true si existe una espera circular
@@ -93,16 +100,15 @@ int circular_chain(ResourceAllocation * ra, ResourceAllocation * cycle_head){
 	 * ya que todos los recursos tienen una instancia como maximo
 	 */
 
-
-	if(!is_esi_waiting(ra->esi_id)) return 0;
+	if(!is_esi_waiting(cycle_element->esi_id)) return 0;
 
 	ResourceAllocation * key_owner;
-	ra = find_allocation_node(ra->esi_id, WAITING);
-	key_owner = find_allocation_node(get_owner_esi(ra->key), BLOCKED);
+	cycle_element = find_allocation_node(cycle_element->esi_id, WAITING);
+	key_owner = find_allocation_node(get_owner_esi(cycle_element->key), BLOCKED);
 
-	if(key_owner->esi_id == cycle_head->esi_id) return 1;
+	if(key_owner->esi_id == cycle_head_id) return 1;
 
-	return circular_chain(key_owner, cycle_head);
+	return circular_chain(key_owner, cycle_head_id);
 }
 
 ResourceAllocation * find_allocation_node(int esi_id, int type){

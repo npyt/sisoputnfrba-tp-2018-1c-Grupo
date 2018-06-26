@@ -266,7 +266,7 @@ void * listening_thread(int server_socket) {
 							}
 							break;
 						case NEW_RESOURCE_ALLOCATION:
-							print_and_log_trace(logger, "[INCOMMING_RESOURCE_ALLOCATION]");
+							print_and_log_trace(logger, "[INCOMING_RESOURCE_ALLOCATION]");
 
 							ResourceAllocation * ra = malloc(sizeof(ResourceAllocation));
 							recieve_data(incoming_socket, ra, sizeof(ResourceAllocation));
@@ -365,27 +365,12 @@ int array_size(char* array[]){
 }
 
 int is_key_free(char key[KEY_NAME_MAX]) {
-	int a;
-	for(a=0 ; a<allocations->elements_count ; a++) {
-		ResourceAllocation * ra = list_get(allocations, a);
-		if(strcmp(ra->key, key) == 0 && ra->type == BLOCKED) {
-			return 0;
-		}
-	}
-	return 1;
+	if(get_owner_esi(key) < 0) return 0;
+	else return 1;
 }
 
 int is_key_allocated_by(char key[KEY_NAME_MAX], int esi_id) {
-	int a;
-	for(a=0 ; a<allocations->elements_count ; a++) {
-		ResourceAllocation * ra = list_get(allocations, a);
-		if(strcmp(ra->key, key) == 0 &&
-				ra->esi_id == esi_id &&
-				ra->type == BLOCKED) {
-			return 1;
-		}
-	}
-	return 0;
+	return get_owner_esi(key) == esi_id;
 }
 
 void process_allocation(ResourceAllocation * ra) {
@@ -501,6 +486,44 @@ int key_exists(char key[KEY_NAME_MAX]) {
 	return 0;
 }
 
+int get_owner_esi(char key[KEY_NAME_MAX]){
+	int a;
+	for(a=allocations->elements_count-1 ; 0<=a ; a--) {
+		ResourceAllocation * ra = list_get(allocations, a);
+		if(strcmp(ra->key, key) == 0 &&
+				ra->type == BLOCKED) {
+			return ra->esi_id;
+		}
+	}
+	return -1;
+}
+
+int is_esi_waiting(int esi_id){
+	/*No todos los ESI de la blocked queue fueron bloqueados
+	 * por estar esperando un recurso ya que tambien se los puede
+	 * bloquear por consola
+	 */
+
+	int _is_esi_waiting(ResourceAllocation * some_allocation){
+		return some_allocation->esi_id == esi_id &&
+				some_allocation->type == WAITING;
+	}
+
+	return list_any_satisfy(allocations, (void*)_is_esi_waiting);
+}
+
+t_list * get_waiting_allocations(){
+	t_list * ret = list_duplicate(allocations);
+	ResourceAllocation * ra;
+
+	for(int i = 0; i < ret->elements_count; i++){
+		ra = list_get(ret, i);
+		if(ra->type != WAITING) list_remove(ret, i);
+	}
+
+	return ret;
+}
+
 float estimate(ESIRegistration*esi){
 	float alpha = settings.alpha;
 	float estimation = (alpha/100)*(esi->job_counter) + (1-(alpha/100))*(esi->estimation);
@@ -580,4 +603,6 @@ void sort_queues() {
 	}
 }
 
-
+t_list * get_allocations(){
+	return allocations;
+}

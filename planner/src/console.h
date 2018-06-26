@@ -26,11 +26,14 @@ void unlock_resource_with_esi(char key[KEY_NAME_MAX], int esi_id);
 void unlock_resource_with_esi_all(char key[KEY_NAME_MAX]);
 void free_esis_waiting_for(char key[KEY_NAME_MAX]);
 void sort_queues();
-
+int is_esi_waiting(int esi_id);
+int get_owner_esi(char key[KEY_NAME_MAX]);
 int key_exists(char key[KEY_NAME_MAX]);
 void add_esi_to_blocked(ESIRegistration * esi);
 ESIRegistration * search_esi(int esi_id);
 t_list * search_esis_waiting_for(char key[KEY_NAME_MAX]);
+t_list * get_waiting_allocations();
+t_list * get_allocations();
 
 //Console
 
@@ -40,5 +43,6 @@ int parse(char **, char **, char **);
 void execute(int, char*, char*);
 int find_in_array(char*, const char**, int);
 void string_tolower(char*);
+int circular_chain(ResourceAllocation* ra, ResourceAllocation* cycle_head);
 
 #endif /* CONSOLE_H_ */

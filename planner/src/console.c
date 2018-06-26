@@ -1,16 +1,18 @@
 #include "console.h"
 
+ResourceAllocation * find_allocation_node(int esi_id, int type);
+
 int RUNNING_FLAG = 1;
 
 /*Commands*/
 void pause(){
 	RUNNING_FLAG = 0;
 	printf("Planificación pausada\n");
-};
+}
 void resume(){
 	RUNNING_FLAG = 1;
 	printf("Planificación reanudada\n");
-};
+}
 void block(char* key, int id){ //Issue #1105 TODO No se entiende la diferencia entre ambos casos
 	if(is_key_free(key)) {
 		ESIRegistration * esi = search_esi(id);
@@ -45,11 +47,11 @@ void block(char* key, int id){ //Issue #1105 TODO No se entiende la diferencia e
 			printf("El ESI no existe.\n");
 		}
 	}
-};
+}
 void unblock(char* key){
 	unlock_resource_all(key);
 	printf("Recurso desbloqueado.\n");
-};
+}
 void list(char* resource){
 	int a;
 	t_list * list = search_esis_waiting_for(resource);
@@ -62,23 +64,68 @@ void list(char* resource){
 		}
 		free(list);
 	}
-};
+}
 void kill(char* id){
-};
+}
 void status(char* key){
-};
+}
+
 void deadlock(){
-};
+
+	printf("Procesos en deadlock:\n");
+	ResourceAllocation * ra;
+
+	t_list * waiting_allocations = get_waiting_allocations();
+
+	for(int i = 0; i < waiting_allocations->elements_count; i++){
+		ra = list_get(waiting_allocations, i);
+		if(circular_chain(ra, ra)) printf("- ESI nro %d", ra->esi_id);
+	}
+
+	list_destroy(waiting_allocations);
+}
+
+int circular_chain(ResourceAllocation * ra, ResourceAllocation * cycle_head){
+
+	/*
+	 * Devuelve true si existe una espera circular
+	 * A efectos del TP, una espera circular implica deadlock
+	 * ya que todos los recursos tienen una instancia como maximo
+	 */
+
+
+	if(!is_esi_waiting(ra->esi_id)) return 0;
+
+	ResourceAllocation * key_owner;
+	ra = find_allocation_node(ra->esi_id, WAITING);
+	key_owner = find_allocation_node(get_owner_esi(ra->key), BLOCKED);
+
+	if(key_owner->esi_id == cycle_head->esi_id) return 1;
+
+	if(circular_chain(key_owner, cycle_head)) return 1;
+
+	return 0;
+}
+
+ResourceAllocation * find_allocation_node(int esi_id, int type){
+	bool _allocation_esi_node(ResourceAllocation * some_allocation){
+		return some_allocation->type == type &&
+				some_allocation->esi_id == esi_id;
+	}
+
+	return list_find(get_allocations(), (void*) _allocation_esi_node);
+}
+
 void exit_c(){
-};
+}
 
 void info(){
     printf("pausar/continuar: El Planificador no le dará nuevas órdenes de ejecución a ningún ESI mientras se encuentre pausado.\n");
-    printf("bloquear <clave> <ID>: Se bloqueará el proceso ESI hasta ser desbloqueado (ver más adelante), especificado por dicho ID(^3) en la cola del recurso clave. Vale recordar que cada línea del script a ejecutar es atómica, y no podrá ser interrumpida; si no que se bloqueará en la próxima oportunidad posible. Solo se podrán bloquear de esta manera ESIs que estén en el estado de listo o ejecutando.\n");
+    printf("bloquear <clave> <ID>: Se bloqueará el proceso ESI hasta ser desbloqueado, especificado por dicho ID en la cola del recurso clave. Vale recordar que cada línea del script a ejecutar es atómica, y no podrá ser interrumpida; sino que se bloqueará en la próxima oportunidad posible. Solo se podrán bloquear de esta manera ESIs que estén en el estado de listo o ejecutando.\n");
     printf("desbloquear <clave>: Se desbloqueara el primer proceso ESI bloquedo por la clave especificada. Solo se bloqueará ESIs que fueron bloqueados con la consola. Si un ESI está bloqueado esperando un recurso, no podrá ser desbloqueado de esta forma.\n");
     printf("listar <recurso>: Lista los procesos encolados esperando al recurso.\n");
     printf("kill <ID>: finaliza el proceso. Recordando la atomicidad mencionada en “bloquear”.\n");
-    printf("status <clave>: Debido a que para la correcta coordinación de las sentencias de acuerdo a los algoritmos de distribución(^4) se requiere de cierta información sobre las instancias del sistema.\n");
+    printf("status <clave>: Debido a que para la correcta coordinación de las sentencias de acuerdo a los algoritmos de distribución se requiere de cierta información sobre las instancias del sistema.\n");
     printf("deadlock: Esta consola también permitirá analizar los deadlocks que existan en el sistema y a que ESI están asociados. Pudiendo resolverlos manualmente con la sentencia de kill previamente descrita.\n");
 }
 
@@ -187,3 +234,4 @@ void string_tolower(char* string){
 	for(int i = 0; string[i]; i++)
 		string[i] = tolower(string[i]);
 }
+

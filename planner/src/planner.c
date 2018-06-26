@@ -365,8 +365,8 @@ int array_size(char* array[]){
 }
 
 int is_key_free(char key[KEY_NAME_MAX]) {
-	if(get_owner_esi(key) < 0) return 0;
-	else return 1;
+	if(get_owner_esi(key) < 0) return 1;
+	return 0;
 }
 
 int is_key_allocated_by(char key[KEY_NAME_MAX], int esi_id) {

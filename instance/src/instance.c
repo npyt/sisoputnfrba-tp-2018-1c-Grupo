@@ -128,6 +128,7 @@ void * listening_thread(int coordinator_socket) {
 							if(process_instruction(instruction) == 1) {
 								print_and_log_trace(logger, "[INSTRUCTION_SUCCESSFUL][INFORMING_COORDINATOR]");
 								send_message_type(incoming_socket, INSTRUCTION_OK_TO_COORD);
+								send_data(incoming_socket, &settings.free_entries, sizeof(InstanceConfig)); //sending free_entries to coordinator
 							} else {
 								print_and_log_trace(logger, "[INSTRUCTION_FAILED][INFORMING_COORDINATOR]");
 								send_message_type(incoming_socket, INSTRUCTION_FAILED_TO_COORD);
@@ -289,6 +290,7 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 		cell->atomic_value = 0;
 		cell->content = NULL;
 		cell->content_size = 0;
+		settings.free_entries--;
 	}
 	rs->cell_count = cells_nedded;
 
@@ -303,13 +305,13 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 		} else {
 			cell->atomic_value = 0;
 		}
+		settings.free_entries++;
 		cell->content_size = entry_settings.entry_size;
 		cell->content = malloc(cell->content_size);
 		memcpy(cell->content, value+q*entry_settings.entry_size, entry_settings.entry_size);
 
 		print_and_log_trace(logger, "[ENTRY_%d][VALUE_%s]", cell->id, cell->content);
 	}
-
 	return 1;
 }
 

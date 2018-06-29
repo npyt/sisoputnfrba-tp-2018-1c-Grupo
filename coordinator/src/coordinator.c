@@ -202,9 +202,13 @@ void * listening_thread(int server_socket) {
 
 										//Waiting for response
 										recieve_header(instance->socket, response_header);
-
+										InstanceRegistration *receive_entries = malloc(sizeof(InstanceRegistration));
 										switch(response_header->type) {
 											case INSTRUCTION_OK_TO_COORD:
+												recieve_data(instance->socket, receive_entries->free_entries, sizeof(InstanceRegistration)); //receiving free_entries from instance
+												instance->free_entries = receive_entries->free_entries;
+												free(receive_entries);
+
 												print_and_log_trace(logger, "[OPERATION_SUCCESSFUL][INFORMING_PLANNER]");
 												send_message_type(settings.planner_socket, INSTRUCTION_OK_TO_PLANNER);
 
@@ -339,7 +343,10 @@ void instance_limit_calculation(){
 		last_inst->sup = 'z';
 	}
 }
+bool max_free_entries_instance(InstanceRegistration *instance_1, InstanceRegistration * instance_2){
 
+	return (instance_1->free_entries > instance_2->free_entries);
+}
 int get_instance_index_by_alg(char *key) { //TODO algs
 	int chosen_index = 0;
 	int value = find_first_Lowercase (key);
@@ -347,6 +354,8 @@ int get_instance_index_by_alg(char *key) { //TODO algs
 	InstanceRegistration* inst;
 	switch(settings.dist_alg) {
 		case LSU:
+			list_sort(instances, (void *)max_free_entries_instance);
+			chosen_index = 0;
 			break;
 		case EL:
 			last_used_instance++;

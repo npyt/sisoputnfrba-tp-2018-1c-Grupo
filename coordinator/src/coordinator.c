@@ -12,6 +12,10 @@ t_list * resources;
 void * listening_thread(int server_socket);
 InstanceRegistration * get_instance_for_process(InstructionDetail * instruction);
 InstanceRegistration * search_instance_by_name(char name[INSTANCE_NAME_MAX]);
+void instance_limit_calculation();
+int find_first_Lowercase (char *key);
+int get_instance_index_by_alg(char *key);
+
 
 int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
@@ -154,7 +158,7 @@ void * listening_thread(int server_socket) {
 									header->type = HSK_INST_COORD_RELOAD;
 									send_header_and_data(incoming_socket, header, data, sizeof(InstanceData));
 								}
-
+								instance_limit_calculation();//llamar asignaccion si es KE MEC
 							break;
 						case HSK_PLANNER_COORD:
 								print_and_log_trace(logger, "[PLANNER_HANDSHAKE][SAVING_SOCKET]");
@@ -297,15 +301,50 @@ InstanceRegistration * get_instance_for_process(InstructionDetail * instruction)
 	} else {
 		ResourceRegistration * re = search_resource(instruction->key);
 		if(re->instance == NULL) {
-			re->instance = list_get(instances, get_instance_index_by_alg());
+			re->instance = list_get(instances, get_instance_index_by_alg(instruction->key));
 		}
 		return re->instance;
 	}
 	return NULL;
 }
 
-int get_instance_index_by_alg() { //TODO algs
+int find_first_Lowercase (char *key){
+    for (int i=0;i<(string_length(key)-1);i++){
+        	int value = key[i];
+        	if ((value >= 'a' ) && (value <= 'z')){
+        		return value;
+        	        }
+    }
+    return -1; //error?
+}
+
+void instance_limit_calculation(){
+	int letters = 26;
+	int inst_number = list_size(instances);
+	int letters_per_instance = letters / inst_number;
+	int first_letter = 'a';
+	InstanceRegistration* inst;
+	for(int i =0;i < inst_number;i++){
+	//if (isup){ ----(later)
+		inst= list_get(instances,i);
+		inst->inf = first_letter;
+		first_letter += letters_per_instance;
+		inst->sup=first_letter;//first_letter ahora toma el valor de la ultima.
+	/*}else{
+	 * inst->inf=-1
+	 * inst->sup=-1}*/
+	}
+	if(first_letter < 'z'){
+		InstanceRegistration* last_inst = list_get(instances,list_size(instances)-1);
+		last_inst->sup = 'z';
+	}
+}
+
+int get_instance_index_by_alg(char *key) { //TODO algs
 	int chosen_index = 0;
+	int value = find_first_Lowercase (key);
+	int inst_number = list_size(instances);
+	InstanceRegistration* inst;
 	switch(settings.dist_alg) {
 		case LSU:
 			break;
@@ -317,7 +356,23 @@ int get_instance_index_by_alg() { //TODO algs
 			chosen_index = last_used_instance;
 			break;
 		case KE:
+			for(int index =0;index < inst_number;index++){
+			inst= list_get(instances,index);
+				if((value >= inst->inf) && (value <= inst->sup)){
+					return index;
+				}
+			}
 			break;
 	}
 	return chosen_index;
 }
+
+
+
+
+
+
+
+
+
+

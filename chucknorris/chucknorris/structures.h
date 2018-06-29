@@ -158,6 +158,8 @@ typedef struct {
 typedef struct {
 	char name[INSTANCE_NAME_MAX];
 	int socket;
+	int inf;
+	int sup;
 } InstanceRegistration;
 
 typedef struct {

@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
 		//exit_with_message("No especificó el archivo de configuración.", EXIT_FAILURE);
 		argv[1] = malloc(sizeof(char) * 1024);
-		strcpy(argv[1], "config2.cfg");
+		strcpy(argv[1], "config.cfg");
 	}
 
 	config = config_create(argv[1]);

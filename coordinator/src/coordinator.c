@@ -2,6 +2,7 @@
 
 t_config * config;
 t_log * logger;
+t_log * operation_logger;
 t_list * instances;
 
 int last_used_instance;
@@ -26,6 +27,7 @@ int main(int argc, char **argv) {
 
 	config = config_create(argv[1]);
 	logger = log_create("log.log", "COORDINATOR", false, LOG_LEVEL_TRACE);
+	operation_logger = log_create("operations.log", "COORDINATOR_OPERATIONS", false, LOG_LEVEL_TRACE);
 
 	settings.port = config_get_int_value(config, "PORT");
 	settings.entry_count = config_get_int_value(config, "ENTRY_COUNT");
@@ -221,14 +223,18 @@ void * listening_thread(int server_socket) {
 													ResourceAllocation * ra = malloc(sizeof(ResourceAllocation));
 													ra->esi_id = instruction->esi_id;
 													if(instruction->type == GET_OP) {
+														log_info(operation_logger, "[ESI_%d][GET][%s]", instruction->esi_id, instruction->key);
 														ra->type = BLOCKED;
 													} else if(instruction->type == STORE_OP) {
+														log_info(operation_logger, "[ESI_%d][STORE][%s]", instruction->esi_id, instruction->key);
 														ra->type = RELEASED;
 													}
 													strcpy(ra->key, instruction->key);
 													header->type = NEW_RESOURCE_ALLOCATION;
 													send_header_and_data(settings.planner_socket, header, ra, sizeof(ResourceAllocation));
 													free(ra);
+												} else {
+													log_info(operation_logger, "[ESI_%d][SET][%s][%s]", instruction->esi_id, instruction->key, instruction->opt_value);
 												}
 
 												break;
@@ -242,6 +248,9 @@ void * listening_thread(int server_socket) {
 										print_and_log_trace(logger, "[OPERATION_SUCCESSFUL][INFORMING_PLANNER]");
 										send_message_type(settings.planner_socket, INSTRUCTION_OK_TO_PLANNER);
 										print_and_log_trace(logger, "[NEW_RESOURCE_ALLOCATION][INFORMING_PLANNER]");
+
+										log_info(operation_logger, "[ESI_%d][GET][%s]", instruction->esi_id, instruction->key);
+
 										ResourceAllocation * ra = malloc(sizeof(ResourceAllocation));
 										ra->esi_id = instruction->esi_id;
 										ra->type = BLOCKED;

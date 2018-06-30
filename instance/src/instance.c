@@ -279,7 +279,6 @@ int are_there_n_free_cells_from(int start_index, int n_cells) {
 			return 0;
 		}
 	}
-	print_and_log_debug(logger, "   YES");
 	return 1;
 }
 
@@ -290,7 +289,7 @@ int are_there_n_atomic_or_free_cells_from(int start_index, int n_cells) {
 	}
 	for( ; a<start_index+n_cells ; a++) {
 		StorageCell * cell = list_get(storage_cells, a);
-		if(cell->content_size != 0 || cell->atomic_value == 1) {
+		if(cell->atomic_value == 0 && cell->content_size != 0) {
 			return 0;
 		}
 	}
@@ -316,7 +315,9 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 				case CIRC:
 					for(tries=0 ; tries<entry_settings.entry_count && final_index == -1; tries++) {
 						last_used_cell++;
-						if(last_used_cell == storage_cells->elements_count) { last_used_cell = 0; }
+						if(last_used_cell >= storage_cells->elements_count) { last_used_cell = 0; }
+
+						print_and_log_debug(logger, "    ARE THERE %d FREE FROM %d", cells_nedded, last_used_cell);
 						if(are_there_n_atomic_or_free_cells_from(last_used_cell, cells_nedded) == 1) {
 							final_index = last_used_cell;
 						}
@@ -372,7 +373,7 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 		if(rs->cell_id + q > last_used_cell) {
 			last_used_cell = rs->cell_id + q;
 		}
-		print_and_log_trace(logger, "[ENTRY_%d][VALUE_%s]", cell->id, cell->content);
+		print_and_log_trace(logger, "[ENTRY_%d][ATOMIC_%d][VALUE_%s]", cell->id, cell->atomic_value, cell->content);
 	}
 	return 1;
 }

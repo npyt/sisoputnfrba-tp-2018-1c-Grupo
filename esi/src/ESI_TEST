@@ -1,10 +1,9 @@
 GET test:1
 GET test:2
 GET test:3
-SET test:1 abcdefghij
-SET test:2 ABCDEFGHIJ
 SET test:1 01234
-SET test:3 X
+SET test:2 ABCDE
+SET test:3 abcde
 STORE test:1
 STORE test:2
 STORE test:3

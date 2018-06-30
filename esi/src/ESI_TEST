@@ -3,7 +3,7 @@ GET test:2
 GET test:3
 SET test:1 01234
 SET test:2 ABCDE
-SET test:3 abcde
 STORE test:1
+SET test:3 abcde
 STORE test:2
 STORE test:3

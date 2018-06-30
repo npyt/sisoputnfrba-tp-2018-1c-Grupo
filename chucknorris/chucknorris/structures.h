@@ -195,6 +195,7 @@ typedef struct {
 	int content_size;
 	int atomic_value;
 	char * content;
+	int last_reference;
 } StorageCell;
 
 typedef struct {

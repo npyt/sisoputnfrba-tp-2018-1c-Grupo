@@ -10,6 +10,7 @@ InstanceConfig settings;
 InstanceData entry_settings;
 
 int last_used_cell;
+int local_operation_counter;
 
 void * listening_thread(int server_socket);
 
@@ -44,6 +45,8 @@ int main(int argc, char **argv) {
 
 	storage_cells = NULL;
 	resources = NULL;
+
+	local_operation_counter = -1;
 
 	int coordinator_socket = connect_with_server(settings.coord_ip, settings.coord_port);
 
@@ -121,6 +124,8 @@ void * listening_thread(int coordinator_socket) {
 							print_and_log_trace(logger, "[INCOMING_INSTRUCTION_FROM_COORDINATOR]");
 							print_and_log_trace(logger, "[PROCESSING]");
 
+							local_operation_counter++;
+
 							InstructionDetail * instruction = malloc(sizeof(InstructionDetail));
 							recieve_data(incoming_socket, instruction, sizeof(InstructionDetail));
 
@@ -155,6 +160,7 @@ void prepare_storage() {
 		cell->content = NULL;
 		cell->content_size = 0;
 		cell->id = a;
+		cell->last_reference = -1;
 
 		list_add(storage_cells, cell);
 	}
@@ -225,10 +231,12 @@ int compact() {
 						de->atomic_value = or->atomic_value;
 						de->content_size = or->content_size;
 						de->content = or->content;
+						de->last_reference = or->last_reference;
 
 						or->atomic_value = 0;
 						or->content_size = 0;
 						or->content = NULL;
+						or->last_reference = -1;
 
 						destination_cell++;
 					}
@@ -310,24 +318,40 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 		}
 
 		if(cells_nedded > settings.free_entries) { //Must replace
-			int tries, final_index = -1;
+			int final_index = -1;
 			switch(settings.replacement_alg) {
 				case CIRC:
-					for(tries=0 ; tries<entry_settings.entry_count && final_index == -1; tries++) {
+					for(int tries=0 ; tries<entry_settings.entry_count && final_index == -1; tries++) {
 						last_used_cell++;
 						if(last_used_cell >= storage_cells->elements_count) { last_used_cell = 0; }
 
-						print_and_log_debug(logger, "    ARE THERE %d FREE FROM %d", cells_nedded, last_used_cell);
 						if(are_there_n_atomic_or_free_cells_from(last_used_cell, cells_nedded) == 1) {
 							final_index = last_used_cell;
 						}
 					}
 					break;
 				case LRU:
+					{
+						int min_lsu, index_lsu;
+						StorageCell * sc;
+						min_lsu = local_operation_counter;
+						index_lsu = -1;
+						for(int a=0 ; a<storage_cells->elements_count ; a++) {
+							sc = list_get(storage_cells, a);
+							if(sc->last_reference < min_lsu) {
+								if(are_there_n_atomic_or_free_cells_from(a, cells_nedded) == 1) {
+									min_lsu = sc->last_reference;
+									index_lsu = a;
+								}
+							}
+						}
+						final_index = index_lsu;
+					}
 					break;
 				case BSU:
 					break;
 			}
+			//TODO What happens with replaced values ???
 			rs->cell_id = final_index;
 		} else {
 			last_used_cell++;
@@ -352,6 +376,7 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 		free(cell->content);
 		cell->content = NULL;
 		cell->content_size = 0;
+		cell->last_reference = -1;
 		settings.free_entries++;
 	}
 	rs->cell_count = cells_nedded;
@@ -368,6 +393,7 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 		settings.free_entries--;
 		cell->content_size = entry_settings.entry_size;
 		cell->content = malloc(cell->content_size);
+		cell->last_reference = local_operation_counter;
 		memcpy(cell->content, value+q*entry_settings.entry_size, entry_settings.entry_size);
 
 		if(rs->cell_id + q > last_used_cell) {
@@ -393,6 +419,7 @@ int dump_storage(ResourceStorage * rs) {
 	if(rs->size != 0) {
 		for(int q=0 ; q<rs->cell_count ; q++) {
 			StorageCell * cell = list_get(storage_cells, rs->cell_id + q);
+			cell->last_reference = local_operation_counter;
 			fwrite(cell->content, cell->content_size, 1, fd);
 		}
 	} else {

@@ -128,7 +128,7 @@ void * listening_thread(int coordinator_socket) {
 							if(process_instruction(instruction) == 1) {
 								print_and_log_trace(logger, "[INSTRUCTION_SUCCESSFUL][INFORMING_COORDINATOR]");
 								send_message_type(incoming_socket, INSTRUCTION_OK_TO_COORD);
-								send_data(incoming_socket, &settings.free_entries, sizeof(InstanceConfig)); //sending free_entries to coordinator
+								send_data(incoming_socket, &settings, sizeof(InstanceConfig)); //sending free_entries to coordinator
 							} else {
 								print_and_log_trace(logger, "[INSTRUCTION_FAILED][INFORMING_COORDINATOR]");
 								send_message_type(incoming_socket, INSTRUCTION_FAILED_TO_COORD);
@@ -149,7 +149,7 @@ void prepare_storage() {
 	int a;
 	storage_cells = list_create();
 	resources = list_create();
-	for(a=0 ; a<MAX_SERVER_CLIENTS ; a++) {
+	for(a=0 ; a<entry_settings.entry_count ; a++) {
 		StorageCell * cell = malloc(sizeof(StorageCell));
 		cell->atomic_value = 0;
 		cell->content = NULL;
@@ -160,6 +160,7 @@ void prepare_storage() {
 	}
 
 	//Start administrative structures for replacement algorithms
+	settings.free_entries = entry_settings.entry_count;
 	last_used_cell = -1;
 }
 
@@ -173,24 +174,74 @@ int process_instruction(InstructionDetail * instruction) {
 		//Instance doesnt process GET op, Issue #1082
 		case SET_OP:
 			if((rs = get_key(instruction->key)) != NULL) {
-				set_storage(rs, instruction->opt_value);
+				return set_storage(rs, instruction->opt_value);
 			} else {
 				return 0;
 			}
 			break;
 		case STORE_OP:
 			if((rs = get_key(instruction->key)) != NULL) {
-				store_storage(rs);
+				return store_storage(rs);
 			} else {
 				return 0;
 			}
 			break;
 	}
-	return 1;
+	return 0;
 }
 
-void compact() {
-	//TODO Function compact
+ResourceStorage * search_resource_by_cell_id(int id) {
+	for(int a=0 ; a<resources->elements_count ; a++) {
+		ResourceStorage * rs = list_get(resources, a);
+		if(rs->cell_id == id) return rs;
+	}
+	return NULL;
+}
+
+int compact() {
+	int allocated_cells = entry_settings.entry_count - settings.free_entries;
+	int destination_cell = 0, parse_index = 0, new_start;
+
+	StorageCell * sc;
+
+	while(parse_index < entry_settings.entry_count) {
+		sc = list_get(storage_cells, parse_index);
+		while(parse_index < entry_settings.entry_count && sc->content_size == 0) {
+			parse_index++;
+			if(parse_index < entry_settings.entry_count){
+				sc = list_get(storage_cells, parse_index);
+			}
+		}
+		if(parse_index == entry_settings.entry_count) {
+		} else {
+			ResourceStorage * rs = search_resource_by_cell_id(sc->id);
+			if (rs != NULL) {
+				if(rs->cell_id != destination_cell) {
+					new_start = destination_cell;
+					for(int q=0 ; q<rs->cell_count ; q++) {
+						StorageCell * or = list_get(storage_cells, rs->cell_id + q);
+						StorageCell * de = list_get(storage_cells, destination_cell);
+
+						de->atomic_value = or->atomic_value;
+						de->content_size = or->content_size;
+						de->content = or->content;
+
+						or->atomic_value = 0;
+						or->content_size = 0;
+						or->content = NULL;
+
+						destination_cell++;
+					}
+					rs->cell_id = new_start;
+					parse_index = destination_cell;
+				} else {
+					destination_cell += rs->cell_count;
+					parse_index += rs->cell_count;
+				}
+			}
+		}
+	}
+	return destination_cell;
 }
 
 ResourceStorage * get_key(char key[KEY_NAME_MAX]) {
@@ -219,7 +270,7 @@ ResourceStorage * get_key(char key[KEY_NAME_MAX]) {
 
 int are_there_n_free_cells_from(int start_index, int n_cells) {
 	int a = start_index;
-	if(start_index + n_cells > (entry_settings.entry_count-1)) {
+	if(start_index + n_cells > (entry_settings.entry_count)) {
 		return 0;
 	}
 	for( ; a<start_index+n_cells ; a++) {
@@ -228,12 +279,13 @@ int are_there_n_free_cells_from(int start_index, int n_cells) {
 			return 0;
 		}
 	}
+	print_and_log_debug(logger, "   YES");
 	return 1;
 }
 
 int are_there_n_atomic_or_free_cells_from(int start_index, int n_cells) {
 	int a = start_index;
-	if(start_index + n_cells > (entry_settings.entry_count-1)) {
+	if(start_index + n_cells > (entry_settings.entry_count)) {
 		return 0;
 	}
 	for( ; a<start_index+n_cells ; a++) {
@@ -258,11 +310,7 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 			return -1;
 		}
 
-		last_used_cell++;
-		if(last_used_cell == storage_cells->elements_count) { last_used_cell = 0; }
-		if(are_there_n_free_cells_from(last_used_cell, cells_nedded) == 1) {
-			rs->cell_id = last_used_cell;
-		} else {
+		if(cells_nedded > settings.free_entries) { //Must replace
 			int tries, final_index = -1;
 			switch(settings.replacement_alg) {
 				case CIRC:
@@ -280,36 +328,50 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 					break;
 			}
 			rs->cell_id = final_index;
+		} else {
+			last_used_cell++;
+			if(last_used_cell == storage_cells->elements_count) { last_used_cell = 0; }
+
+			if(are_there_n_free_cells_from(last_used_cell, cells_nedded) == 1) { //See if there is free space from last used
+				rs->cell_id = last_used_cell;
+			} else { //If not, must compact and look again from last position
+				last_used_cell = compact();
+				rs->cell_id = last_used_cell;
+			}
 		}
 
+	} else {
+		if (cells_nedded > rs->cell_count) return -1;
 	}
 
 	rs->size = strlen(value) * sizeof(char);
 	for(int q=0 ; q<rs->cell_count ; q++) { //Clear prior cells
 		StorageCell * cell = list_get(storage_cells, rs->cell_id + q);
 		cell->atomic_value = 0;
+		free(cell->content);
 		cell->content = NULL;
 		cell->content_size = 0;
-		settings.free_entries--;
+		settings.free_entries++;
 	}
 	rs->cell_count = cells_nedded;
 
 	print_and_log_trace(logger, "[START_ALLOCATION][KEY_%s][INIT_ENTRY_%d]", rs->key, rs->cell_id);
 
 	for(int q=0 ; q<cells_nedded ;q++) {
-		//TODO Clear resources using this cell
-
 		StorageCell * cell = list_get(storage_cells, rs->cell_id + q);
 		if(cells_nedded == 1) {
 			cell->atomic_value = 1;
 		} else {
 			cell->atomic_value = 0;
 		}
-		settings.free_entries++;
+		settings.free_entries--;
 		cell->content_size = entry_settings.entry_size;
 		cell->content = malloc(cell->content_size);
 		memcpy(cell->content, value+q*entry_settings.entry_size, entry_settings.entry_size);
 
+		if(rs->cell_id + q > last_used_cell) {
+			last_used_cell = rs->cell_id + q;
+		}
 		print_and_log_trace(logger, "[ENTRY_%d][VALUE_%s]", cell->id, cell->content);
 	}
 	return 1;

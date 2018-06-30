@@ -85,14 +85,14 @@ void * listening_thread(int server_socket) {
 		for(a=0 ; a<MAX_SERVER_CLIENTS ; a++) {
 			if(clients[a] > 0) {
 				FD_SET(clients[a], &master_set);
-				print_and_log_trace(logger, "[SOCKET][%d]", clients[a]);
+				//print_and_log_trace(logger, "[SOCKET][%d]", clients[a]);
 				if(max_sd < clients[a]) {
 					max_sd = clients[a];
 				}
 			}
 		}
 		activity_socket = select(max_sd + 1, &master_set, NULL, NULL, NULL);
-		print_and_log_trace(logger, "[PELADO SAMPAOLI]");
+		//print_and_log_trace(logger, "[PELADO SAMPAOLI]");
 
 		if(FD_ISSET(server_socket, &master_set)) {
 			incoming_socket = server_socket;
@@ -146,13 +146,15 @@ void * listening_thread(int server_socket) {
 								InstanceRegistration * prev_inst = search_instance_by_name(ir->name);
 								if(prev_inst == NULL) {
 									print_and_log_trace(logger, "[SAYS_NAME_IS][%s]", ir->name);
+									ir->free_entries = settings.entry_count;
 
 									list_add(instances, ir);
 
 									header->type = HSK_INST_COORD_OK;
 									send_header_and_data(incoming_socket, header, data, sizeof(InstanceData));
 								} else {
-									print_and_log_trace(logger, "[WAS_AN_EXISTING_CONNECTION][%s][REPORTING_IT_MUST_RELOAD_KEYS]", ir->name);
+									free(ir);
+									print_and_log_trace(logger, "[WAS_AN_EXISTING_CONNECTION][%s][REPORTING_IT_MUST_RELOAD_KEYS]", prev_inst->name);
 									prev_inst->socket = incoming_socket;
 
 									header->type = HSK_INST_COORD_RELOAD;
@@ -181,6 +183,8 @@ void * listening_thread(int server_socket) {
 							print_and_log_trace(logger, "[ESI_ID][ESI_%d]", instruction->esi_id);
 							print_instruction(instruction);
 
+							print_and_log_trace(logger, "[DELAY]");
+							sleep(settings.delay / 1000);
 
 							send_message_type(settings.planner_socket, INSTRUCTION_PERMISSION);
 							send_data(settings.planner_socket, instruction, sizeof(InstructionDetail));
@@ -202,14 +206,14 @@ void * listening_thread(int server_socket) {
 
 										//Waiting for response
 										recieve_header(instance->socket, response_header);
-										InstanceRegistration *receive_entries = malloc(sizeof(InstanceRegistration));
 										switch(response_header->type) {
 											case INSTRUCTION_OK_TO_COORD:
+												print_and_log_trace(logger, "[OPERATION_SUCCESSFUL][INFORMING_PLANNER]");
+												InstanceConfig * receive_entries = malloc(sizeof(InstanceConfig));
 												recieve_data(instance->socket, receive_entries->free_entries, sizeof(InstanceRegistration)); //receiving free_entries from instance
 												instance->free_entries = receive_entries->free_entries;
 												free(receive_entries);
 
-												print_and_log_trace(logger, "[OPERATION_SUCCESSFUL][INFORMING_PLANNER]");
 												send_message_type(settings.planner_socket, INSTRUCTION_OK_TO_PLANNER);
 
 												if(instruction->type != SET_OP) {
@@ -343,10 +347,10 @@ void instance_limit_calculation(){
 		last_inst->sup = 'z';
 	}
 }
-bool max_free_entries_instance(InstanceRegistration *instance_1, InstanceRegistration * instance_2){
-
+bool max_free_entries_instance(InstanceRegistration *instance_1, InstanceRegistration * instance_2) {
 	return (instance_1->free_entries > instance_2->free_entries);
 }
+
 int get_instance_index_by_alg(char *key) { //TODO algs
 	int chosen_index = 0;
 	int value = find_first_Lowercase (key);
@@ -375,13 +379,3 @@ int get_instance_index_by_alg(char *key) { //TODO algs
 	}
 	return chosen_index;
 }
-
-
-
-
-
-
-
-
-
-

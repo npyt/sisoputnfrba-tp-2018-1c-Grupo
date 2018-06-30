@@ -160,6 +160,7 @@ typedef struct {
 	int socket;
 	int inf;
 	int sup;
+	int free_entries;
 } InstanceRegistration;
 
 typedef struct {
@@ -186,6 +187,7 @@ typedef struct {
 	char mounting_point[INSTANCE_MOUNTING_POINT_MAX];
 	char name[INSTANCE_NAME_MAX];
 	int dump;
+	int free_entries;
 } InstanceConfig;
 
 typedef struct {

@@ -338,7 +338,6 @@ void * running_thread(int a) {
 				running_now = 1;
 			}
 		}
-		sleep(1);
 	}
 }
 

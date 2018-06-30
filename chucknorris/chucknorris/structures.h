@@ -161,6 +161,8 @@ typedef struct {
 	int inf;
 	int sup;
 	int free_entries;
+	int mutex_free;
+	int isup;
 } InstanceRegistration;
 
 typedef struct {

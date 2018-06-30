@@ -11,6 +11,8 @@ CoordinatorConfig settings;
 t_list * resources;
 
 void * listening_thread(int server_socket);
+void * instance_thread(InstanceRegistration * ir);
+void * esi_thread(int incoming_socket);
 InstanceRegistration * get_instance_for_process(InstructionDetail * instruction);
 InstanceRegistration * search_instance_by_name(char name[INSTANCE_NAME_MAX]);
 void instance_limit_calculation();
@@ -65,14 +67,6 @@ int main(int argc, char **argv) {
 }
 
 void * listening_thread(int server_socket) {
-	int clients[MAX_SERVER_CLIENTS];
-	int a, max_sd, activity_socket, incoming_socket;
-	fd_set master_set;
-	for(a=0 ; a<MAX_SERVER_CLIENTS ; a++) {
-		clients[a] = 0;
-	}
-	clients[0] = server_socket;
-
 	if(listen(server_socket, MAX_SERVER_CLIENTS) == -1) {
 		print_and_log_trace(logger, "[FAILED_TO_OPEN_LISTEN_AT_PORT]");
 		exit(EXIT_FAILURE);
@@ -81,208 +75,235 @@ void * listening_thread(int server_socket) {
 	print_and_log_trace(logger, "[READY_FOR_CONNECTIONS]");
 
 	while(1) {
-		FD_ZERO(&master_set);
-		FD_SET(server_socket, &master_set);
-		max_sd = server_socket;
-		for(a=0 ; a<MAX_SERVER_CLIENTS ; a++) {
-			if(clients[a] > 0) {
-				FD_SET(clients[a], &master_set);
-				//print_and_log_trace(logger, "[SOCKET][%d]", clients[a]);
-				if(max_sd < clients[a]) {
-					max_sd = clients[a];
-				}
-			}
-		}
-		activity_socket = select(max_sd + 1, &master_set, NULL, NULL, NULL);
-		//print_and_log_trace(logger, "[PELADO SAMPAOLI]");
+		struct sockaddr_in client;
+		int c = sizeof(struct sockaddr_in);
+		int incoming_socket = accept(server_socket, (struct sockaddr *)&client, (socklen_t *)&c);
 
-		if(FD_ISSET(server_socket, &master_set)) {
-			incoming_socket = server_socket;
+		print_and_log_trace(logger, "[INCOMING_CONNECTION]", incoming_socket);
 
-			struct sockaddr_in client;
-			int c = sizeof(struct sockaddr_in);
-			incoming_socket = accept(server_socket, (struct sockaddr *)&client, (socklen_t *)&c);
+		//Recieve Header
+		MessageHeader * i_header = malloc(sizeof(MessageHeader));
+		if (recieve_header(incoming_socket, i_header) <= 0 ) {
+			//Disconnected
+			print_and_log_trace(logger, "[SOCKET_DISCONNECTED]");
+		} else {
+			//New message
+			MessageHeader * header = malloc(sizeof(MessageHeader));
 
-			//From listen
+			switch(i_header->type){
+				case HSK_INST_COORD:
+					print_and_log_trace(logger, "[NEW_INSTANCE]");
+					InstanceRegistration * ir = malloc(sizeof(InstanceRegistration));
+					ir->socket = incoming_socket;
+					recieve_data(incoming_socket, ir->name, INSTANCE_NAME_MAX);
 
-			print_and_log_trace(logger, "[INCOMING_CONNECTION]", incoming_socket);
+					InstanceData * data = malloc(sizeof(InstanceData));
+					data->entry_count = settings.entry_count;
+					data->entry_size = settings.entry_size;
 
-			for(a=0 ; a<MAX_SERVER_CLIENTS; a++) {
-				if(clients[a] == 0) {
-					clients[a] = incoming_socket;
+					InstanceRegistration * prev_inst = search_instance_by_name(ir->name);
+					if(prev_inst == NULL) {
+						print_and_log_trace(logger, "[SAYS_NAME_IS][%s]", ir->name);
+						ir->free_entries = settings.entry_count;
+
+						list_add(instances, ir);
+
+						header->type = HSK_INST_COORD_OK;
+						send_header_and_data(ir->socket, header, data, sizeof(InstanceData));
+
+						pthread_t instance_thread_id;
+						pthread_create(&instance_thread_id, NULL, instance_thread, ir);
+					} else {
+						free(ir);
+						print_and_log_trace(logger, "[WAS_AN_EXISTING_CONNECTION][%s][REPORTING_IT_MUST_RELOAD_KEYS]", prev_inst->name);
+						prev_inst->socket = ir->socket;
+
+						header->type = HSK_INST_COORD_RELOAD;
+						send_header_and_data(ir->socket, header, data, sizeof(InstanceData));
+
+						prev_inst->mutex_free = 1;
+						prev_inst->isup = 1;
+					}
+
 					break;
-				}
+				case HSK_PLANNER_COORD:
+					print_and_log_trace(logger, "[PLANNER_HANDSHAKE][SAVING_SOCKET]");
+
+					settings.planner_socket = incoming_socket;
+
+					header->type = HSK_PLANNER_COORD_OK;
+					send_header(incoming_socket, header);
+					break;
+				case HSK_ESI_COORD:
+					print_and_log_trace(logger, "[NEW_ESI_CONNECTION]");
+					header->type = HSK_ESI_COORD_OK;
+					send_header(incoming_socket, header);
+
+					pthread_t esi_thread_id;
+					pthread_create(&esi_thread_id, NULL, esi_thread, incoming_socket);
+					break;
 			}
-
-
+			free(header);
 		}
-		for(a=0 ; a<MAX_SERVER_CLIENTS ; a++) {
-			if(FD_ISSET(clients[a], &master_set)) {
+		free(i_header);
+	}
+}
 
-				incoming_socket = clients[a];
-				//From another client
-				//Recieve Header
-				MessageHeader * i_header = malloc(sizeof(MessageHeader));
-				if (recieve_header(incoming_socket, i_header) <= 0 ) {
-					//Disconnected
+void * instance_thread(InstanceRegistration * ir) {
+	MessageHeader * header = malloc(sizeof(MessageHeader));
 
+	instance_limit_calculation();
+	ir->mutex_free = 1;
+	ir->isup = 1;
 
-					clients[a] = 0;
-					print_and_log_trace(logger, "[SOCKET_DISCONNECTED]");
-				} else {
-					//New message
+	free(header);
 
-					MessageHeader * header = malloc(sizeof(MessageHeader));
+	int max_sd, activity_socket;
+	fd_set master_set;
 
-					switch(i_header->type){
-						case HSK_INST_COORD:
-							print_and_log_trace(logger, "[NEW_INSTANCE]");
-								InstanceRegistration * ir = malloc(sizeof(InstanceRegistration));
-								ir->socket = incoming_socket;
-								recieve_data(incoming_socket, ir->name, INSTANCE_NAME_MAX);
+	while(1) {
+		FD_ZERO(&master_set);
+		FD_SET(ir->socket, &master_set);
+		max_sd = ir->socket;
 
-								InstanceData * data = malloc(sizeof(InstanceData));
-								data->entry_count = settings.entry_count;
-								data->entry_size = settings.entry_size;
+		activity_socket = select(max_sd + 1, &master_set, NULL, NULL, NULL);
 
-								InstanceRegistration * prev_inst = search_instance_by_name(ir->name);
-								if(prev_inst == NULL) {
-									print_and_log_trace(logger, "[SAYS_NAME_IS][%s]", ir->name);
-									ir->free_entries = settings.entry_count;
+		if(ir->mutex_free == 1 && ir->isup == 1) {
+			MessageHeader * i_header = malloc(sizeof(MessageHeader));
+			if (recieve_header(ir->socket, i_header) <= 0 ) {
+				//Disconnected
+				print_and_log_trace(logger, "[INSTANCE_SOCKET_DISCONNECTED]");
+				ir->isup = 0;
+				instance_limit_calculation();
+			} else {
+				//New message
+				header = malloc(sizeof(MessageHeader));
+				switch(i_header->type) {
 
-									list_add(instances, ir);
+				}
+				free(header);
+			}
+			free(i_header);
+		}
+	}
+}
 
-									header->type = HSK_INST_COORD_OK;
-									send_header_and_data(incoming_socket, header, data, sizeof(InstanceData));
-								} else {
-									free(ir);
-									print_and_log_trace(logger, "[WAS_AN_EXISTING_CONNECTION][%s][REPORTING_IT_MUST_RELOAD_KEYS]", prev_inst->name);
-									prev_inst->socket = incoming_socket;
+void * esi_thread(int incoming_socket) {
+	MessageHeader * header = malloc(sizeof(MessageHeader));
+	int esi_alive = 1;
 
-									header->type = HSK_INST_COORD_RELOAD;
-									send_header_and_data(incoming_socket, header, data, sizeof(InstanceData));
-								}
-								instance_limit_calculation();//llamar asignaccion si es KE MEC
-							break;
-						case HSK_PLANNER_COORD:
-								print_and_log_trace(logger, "[PLANNER_HANDSHAKE][SAVING_SOCKET]");
+	while(esi_alive) {
+		MessageHeader * i_header = malloc(sizeof(MessageHeader));
+		if (recieve_header(incoming_socket, i_header) <= 0 ) {
+			//Disconnected
+			print_and_log_trace(logger, "[ESI_SOCKET_DISCONNECTED]");
+			esi_alive = 0;
+		} else {
+			//New message
 
-								settings.planner_socket = incoming_socket;
+			header = malloc(sizeof(MessageHeader));
+			switch(i_header->type) {
+				case INSTRUCTION_ESI_COORD:
+					print_and_log_trace(logger, "[INCOMING_INSTRUCTION_FROM_ESI]");
+					InstructionDetail * instruction = malloc(sizeof(InstructionDetail));
+					recieve_data(incoming_socket, instruction, sizeof(InstructionDetail));
 
-								header->type = HSK_PLANNER_COORD_OK;
-								send_header(incoming_socket, header);
-								break;
-						case HSK_ESI_COORD:
-							print_and_log_trace(logger, "[NEW_ESI_CONNECTION]");
-							header->type = HSK_ESI_COORD_OK;
-							send_header(incoming_socket, header);
-							break;
-						case INSTRUCTION_ESI_COORD:
-							print_and_log_trace(logger, "[INCOMING_INSTRUCTION_FROM_ESI]");
-							InstructionDetail * instruction = malloc(sizeof(InstructionDetail));
-							recieve_data(incoming_socket, instruction, sizeof(InstructionDetail));
+					print_and_log_trace(logger, "[ESI_ID][ESI_%d]", instruction->esi_id);
+					print_instruction(instruction);
 
-							print_and_log_trace(logger, "[ESI_ID][ESI_%d]", instruction->esi_id);
-							print_instruction(instruction);
+					print_and_log_trace(logger, "[DELAY]");
+					sleep(settings.delay / 1000);
 
-							print_and_log_trace(logger, "[DELAY]");
-							sleep(settings.delay / 1000);
+					send_message_type(settings.planner_socket, INSTRUCTION_PERMISSION);
+					send_data(settings.planner_socket, instruction, sizeof(InstructionDetail));
+					print_and_log_trace(logger, "[ASKING_FOR_PLANNER_PERMISSION]");
 
-							send_message_type(settings.planner_socket, INSTRUCTION_PERMISSION);
-							send_data(settings.planner_socket, instruction, sizeof(InstructionDetail));
-							print_and_log_trace(logger, "[ASKING_FOR_PLANNER_PERMISSION]");
+					//Waiting for response
+					MessageHeader * response_header = malloc(sizeof(MessageHeader));
+					recieve_header(settings.planner_socket, response_header);
 
-							//Waiting for response
-							MessageHeader * response_header = malloc(sizeof(MessageHeader));
-							recieve_header(settings.planner_socket, response_header);
+					switch (response_header->type) {
+						case INSTRUCTION_ALLOWED:
+							print_and_log_trace(logger, "[PERMISSION_GRANTED]");
 
-							switch (response_header->type) {
-								case INSTRUCTION_ALLOWED:
-									print_and_log_trace(logger, "[PERMISSION_GRANTED]");
+							InstanceRegistration * instance = get_instance_for_process(instruction);
+							if (instance != NULL && instruction->type != GET_OP) { //Available instance and SET or STORE
+								instance->mutex_free = 0;
+								header->type = INSTRUCTION_COORD_INST;
+								send_header_and_data(instance->socket, header, instruction, sizeof(InstructionDetail));
+								print_and_log_trace(logger, "[INSTRUCTION_SENT_TO_INSTANCE][%s]", instance->name);
 
-									InstanceRegistration * instance = get_instance_for_process(instruction);
-									if (instance != NULL && instruction->type != GET_OP) { //Available instance and SET or STORE
-										header->type = INSTRUCTION_COORD_INST;
-										send_header_and_data(instance->socket, header, instruction, sizeof(InstructionDetail));
-										print_and_log_trace(logger, "[INSTRUCTION_SENT_TO_INSTANCE][%s]", instance->name);
+								//Waiting for response
+								recieve_header(instance->socket, response_header);
 
-										//Waiting for response
-										recieve_header(instance->socket, response_header);
-										switch(response_header->type) {
-											case INSTRUCTION_OK_TO_COORD:
-												print_and_log_trace(logger, "[OPERATION_SUCCESSFUL][INFORMING_PLANNER]");
-												InstanceConfig * receive_entries = malloc(sizeof(InstanceConfig));
-												recieve_data(instance->socket, receive_entries->free_entries, sizeof(InstanceRegistration)); //receiving free_entries from instance
-												instance->free_entries = receive_entries->free_entries;
-												free(receive_entries);
+								switch(response_header->type) {
+									case INSTRUCTION_OK_TO_COORD:
+										print_and_log_trace(logger, "[OPERATION_SUCCESSFUL][INFORMING_PLANNER]");
+										recieve_data(instance->socket, &instance->free_entries, sizeof(int)); //receiving free_entries from instance
 
-												send_message_type(settings.planner_socket, INSTRUCTION_OK_TO_PLANNER);
+										send_message_type(settings.planner_socket, INSTRUCTION_OK_TO_PLANNER);
 
-												if(instruction->type != SET_OP) {
-													print_and_log_trace(logger, "[NEW_RESOURCE_ALLOCATION][INFORMING_PLANNER]");
-													ResourceAllocation * ra = malloc(sizeof(ResourceAllocation));
-													ra->esi_id = instruction->esi_id;
-													if(instruction->type == GET_OP) {
-														log_info(operation_logger, "[ESI_%d][GET][%s]", instruction->esi_id, instruction->key);
-														ra->type = BLOCKED;
-													} else if(instruction->type == STORE_OP) {
-														log_info(operation_logger, "[ESI_%d][STORE][%s]", instruction->esi_id, instruction->key);
-														ra->type = RELEASED;
-													}
-													strcpy(ra->key, instruction->key);
-													header->type = NEW_RESOURCE_ALLOCATION;
-													send_header_and_data(settings.planner_socket, header, ra, sizeof(ResourceAllocation));
-													free(ra);
-												} else {
-													log_info(operation_logger, "[ESI_%d][SET][%s][%s]", instruction->esi_id, instruction->key, instruction->opt_value);
-												}
-
-												break;
-											case INSTRUCTION_FAILED_TO_COORD:
-												print_and_log_trace(logger, "[OPERATION_FAILED][INFORMING_ESI]");
-												send_message_type(incoming_socket, INSTRUCTION_FAILED_TO_ESI);
-												break;
+										if(instruction->type != SET_OP) {
+											print_and_log_trace(logger, "[NEW_RESOURCE_ALLOCATION][INFORMING_PLANNER]");
+											ResourceAllocation * ra = malloc(sizeof(ResourceAllocation));
+											ra->esi_id = instruction->esi_id;
+											if(instruction->type == GET_OP) {
+												log_info(operation_logger, "[ESI_%d][GET][%s]", instruction->esi_id, instruction->key);
+												ra->type = BLOCKED;
+											} else if(instruction->type == STORE_OP) {
+												log_info(operation_logger, "[ESI_%d][STORE][%s]", instruction->esi_id, instruction->key);
+												ra->type = RELEASED;
+											}
+											strcpy(ra->key, instruction->key);
+											header->type = NEW_RESOURCE_ALLOCATION;
+											send_header_and_data(settings.planner_socket, header, ra, sizeof(ResourceAllocation));
+											free(ra);
+										} else {
+											log_info(operation_logger, "[ESI_%d][SET][%s][%s]", instruction->esi_id, instruction->key, instruction->opt_value);
 										}
 
-									} else if (instruction->type == GET_OP) { //GET OP, allocated instance but no need to send instruction
-										print_and_log_trace(logger, "[OPERATION_SUCCESSFUL][INFORMING_PLANNER]");
-										send_message_type(settings.planner_socket, INSTRUCTION_OK_TO_PLANNER);
-										print_and_log_trace(logger, "[NEW_RESOURCE_ALLOCATION][INFORMING_PLANNER]");
-
-										log_info(operation_logger, "[ESI_%d][GET][%s]", instruction->esi_id, instruction->key);
-
-										ResourceAllocation * ra = malloc(sizeof(ResourceAllocation));
-										ra->esi_id = instruction->esi_id;
-										ra->type = BLOCKED;
-										strcpy(ra->key, instruction->key);
-										header->type = NEW_RESOURCE_ALLOCATION;
-										send_header_and_data(settings.planner_socket, header, ra, sizeof(ResourceAllocation));
-
-										free(ra);
-									} else { //Failed instruction : unknown key by coordinator
+										break;
+									case INSTRUCTION_FAILED_TO_COORD:
 										print_and_log_trace(logger, "[OPERATION_FAILED][INFORMING_ESI]");
 										send_message_type(incoming_socket, INSTRUCTION_FAILED_TO_ESI);
-									}
-									break;
-								case INSTRUCTION_NOT_ALLOWED:
-									print_and_log_trace(logger, "[OPERATION_FAILED][PROBABLE_ESI_BLOCK]");
-									break;
-								case INSTRUCTION_NOT_ALLOWED_AND_ABORT:
-									print_and_log_trace(logger, "[OPERATION_FAILED][ESI_ABORTION_NOTICE]");
-									send_message_type(incoming_socket, INSTRUCTION_FAILED_TO_ESI);
-									break;
-							}
+										break;
+								}
+								instance->mutex_free = 1;
+							} else if (instruction->type == GET_OP) { //GET OP, allocated instance but no need to send instruction
+								print_and_log_trace(logger, "[OPERATION_SUCCESSFUL][INFORMING_PLANNER]");
+								send_message_type(settings.planner_socket, INSTRUCTION_OK_TO_PLANNER);
+								print_and_log_trace(logger, "[NEW_RESOURCE_ALLOCATION][INFORMING_PLANNER]");
 
+								log_info(operation_logger, "[ESI_%d][GET][%s]", instruction->esi_id, instruction->key);
+
+								ResourceAllocation * ra = malloc(sizeof(ResourceAllocation));
+								ra->esi_id = instruction->esi_id;
+								ra->type = BLOCKED;
+								strcpy(ra->key, instruction->key);
+								header->type = NEW_RESOURCE_ALLOCATION;
+								send_header_and_data(settings.planner_socket, header, ra, sizeof(ResourceAllocation));
+
+								free(ra);
+							} else { //Failed instruction : unknown key by coordinator
+								print_and_log_trace(logger, "[OPERATION_FAILED][INFORMING_ESI]");
+								send_message_type(incoming_socket, INSTRUCTION_FAILED_TO_ESI);
+							}
+							break;
+						case INSTRUCTION_NOT_ALLOWED:
+							print_and_log_trace(logger, "[OPERATION_FAILED][PROBABLE_ESI_BLOCK]");
+							break;
+						case INSTRUCTION_NOT_ALLOWED_AND_ABORT:
+							print_and_log_trace(logger, "[OPERATION_FAILED][ESI_ABORTION_NOTICE]");
+							send_message_type(incoming_socket, INSTRUCTION_FAILED_TO_ESI);
 							break;
 					}
 
-					free(header);
-
-				}
-
-				free(i_header);
+					break;
 			}
+
+			free(header);
 		}
+		free(i_header);
 	}
 }
 

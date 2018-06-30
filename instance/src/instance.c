@@ -93,7 +93,6 @@ void * listening_thread(int coordinator_socket) {
 				if (recieve_header(incoming_socket, i_header) <= 0 ) {
 					//Disconnected
 
-
 					clients[a] = 0;
 					print_and_log_trace(logger, "[SOCKET_DISCONNECTED]");
 				} else {
@@ -108,6 +107,7 @@ void * listening_thread(int coordinator_socket) {
 							recieve_data(incoming_socket, &entry_settings, sizeof(InstanceData));
 
 							print_and_log_trace(logger, "[COORDINATOR_GIVES_CONFIG][%d_ENTRIES][%d_SIZE]", entry_settings.entry_count, entry_settings.entry_size);
+
 							prepare_storage();
 							break;
 						case HSK_INST_COORD_RELOAD: //If i was down, must reload previous keys from the mounting point
@@ -133,7 +133,8 @@ void * listening_thread(int coordinator_socket) {
 							if(process_instruction(instruction) == 1) {
 								print_and_log_trace(logger, "[INSTRUCTION_SUCCESSFUL][INFORMING_COORDINATOR]");
 								send_message_type(incoming_socket, INSTRUCTION_OK_TO_COORD);
-								send_data(incoming_socket, &settings, sizeof(InstanceConfig)); //sending free_entries to coordinator
+
+								send_data(incoming_socket, &settings.free_entries, sizeof(int)); //sending free_entries to coordinator
 							} else {
 								print_and_log_trace(logger, "[INSTRUCTION_FAILED][INFORMING_COORDINATOR]");
 								send_message_type(incoming_socket, INSTRUCTION_FAILED_TO_COORD);

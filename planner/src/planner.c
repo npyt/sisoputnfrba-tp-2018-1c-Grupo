@@ -477,10 +477,7 @@ int key_exists(char key[KEY_NAME_MAX]) {
 	int a;
 	for(a=allocations->elements_count-1 ; 0<=a ; a--) {
 		ResourceAllocation * ra = list_get(allocations, a);
-		if(strcmp(ra->key, key) == 0 &&
-				ra->type == BLOCKED) {
-			return 1;
-		}
+		if(strcmp(ra->key, key) == 0) return 1;
 	}
 	return 0;
 }

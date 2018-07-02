@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
 		//exit_with_message("No especificó el archivo de configuración.", EXIT_FAILURE);
 		argv[1] = malloc(sizeof(char) * 1024);
-		strcpy(argv[1], "config.cfg");
+		strcpy(argv[1], "config3.cfg");
 	}
 
 	config = config_create(argv[1]);
@@ -133,7 +133,7 @@ void * listening_thread(int coordinator_socket) {
 							if(process_instruction(instruction) == 1) {
 								print_and_log_trace(logger, "[INSTRUCTION_SUCCESSFUL][INFORMING_COORDINATOR]");
 								send_message_type(incoming_socket, INSTRUCTION_OK_TO_COORD);
-
+								print_and_log_trace(logger, "[SAMPAOLI]");
 								send_data(incoming_socket, &settings.free_entries, sizeof(int)); //sending free_entries to coordinator
 							} else {
 								print_and_log_trace(logger, "[INSTRUCTION_FAILED][INFORMING_COORDINATOR]");

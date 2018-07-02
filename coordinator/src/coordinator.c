@@ -1,14 +1,15 @@
 #include <chucknorris/allheaders.h>
 
+//Init
 t_config * config;
 t_log * logger;
 t_log * operation_logger;
 t_list * instances;
-
-int last_used_instance;
-
-CoordinatorConfig settings;
 t_list * resources;
+CoordinatorConfig settings;
+
+//Global
+int last_used_instance;
 
 void * listening_thread(int server_socket);
 void * instance_thread(InstanceRegistration * ir);
@@ -27,10 +28,12 @@ int main(int argc, char **argv) {
 		strcpy(argv[1], "config.cfg");
 	}
 
+	// Creating log and config files
 	config = config_create(argv[1]);
 	logger = log_create("log.log", "COORDINATOR", false, LOG_LEVEL_TRACE);
 	operation_logger = log_create("operations.log", "COORDINATOR_OPERATIONS", false, LOG_LEVEL_TRACE);
 
+	// Reading config file
 	settings.port = config_get_int_value(config, "PORT");
 	settings.entry_count = config_get_int_value(config, "ENTRY_COUNT");
 	settings.entry_size = config_get_int_value(config, "ENTRY_SIZE");
@@ -47,22 +50,24 @@ int main(int argc, char **argv) {
 	free(buffer);
 	config_destroy(config);
 
+	// First counters and list inits
 	last_used_instance = -1;
-
 	resources = list_create();
+	instances = list_create();
 
+	// Starting server socket
 	int my_socket = prepare_socket_in_port(settings.port);
 	if (my_socket == -1) {
 		print_and_log_trace(logger, "[FAILED_TO_OPEN_COORDINATOR_PORT]");
 		exit(EXIT_FAILURE);
 	}
-	instances = list_create();
 
+	// Threads
 	pthread_t listening_thread_id;
 	pthread_create(&listening_thread_id, NULL, listening_thread, my_socket);
 
+	// Exit
 	pthread_exit(NULL);
-
 	return EXIT_SUCCESS;
 }
 
@@ -92,28 +97,32 @@ void * listening_thread(int server_socket) {
 
 			switch(i_header->type){
 				case HSK_INST_COORD:
+					// Registrate Instance
 					print_and_log_trace(logger, "[NEW_INSTANCE]");
 					InstanceRegistration * ir = malloc(sizeof(InstanceRegistration));
 					ir->socket = incoming_socket;
 					recieve_data(incoming_socket, ir->name, INSTANCE_NAME_MAX);
 
+					// Registrate Instance entries info
 					InstanceData * data = malloc(sizeof(InstanceData));
 					data->entry_count = settings.entry_count;
 					data->entry_size = settings.entry_size;
 
 					InstanceRegistration * prev_inst = search_instance_by_name(ir->name);
 					if(prev_inst == NULL) {
+						// Registrate NEW Instance
 						print_and_log_trace(logger, "[SAYS_NAME_IS][%s]", ir->name);
 						ir->free_entries = settings.entry_count;
-
 						list_add(instances, ir);
 
+						// Response OK
 						header->type = HSK_INST_COORD_OK;
 						send_header_and_data(ir->socket, header, data, sizeof(InstanceData));
 
 						pthread_t instance_thread_id;
 						pthread_create(&instance_thread_id, NULL, instance_thread, ir);
 					} else {
+						// Instance already exists
 						free(ir);
 						print_and_log_trace(logger, "[WAS_AN_EXISTING_CONNECTION][%s][REPORTING_IT_MUST_RELOAD_KEYS]", prev_inst->name);
 						prev_inst->socket = ir->socket;
@@ -211,9 +220,11 @@ void * esi_thread(int incoming_socket) {
 					print_and_log_trace(logger, "[ESI_ID][ESI_%d]", instruction->esi_id);
 					print_instruction(instruction);
 
+					// Simulate delay
 					print_and_log_trace(logger, "[DELAY]");
 					sleep(settings.delay / 1000);
 
+					// Get permissions from Planner
 					send_message_type(settings.planner_socket, INSTRUCTION_PERMISSION);
 					send_data(settings.planner_socket, instruction, sizeof(InstructionDetail));
 					print_and_log_trace(logger, "[ASKING_FOR_PLANNER_PERMISSION]");
@@ -239,7 +250,7 @@ void * esi_thread(int incoming_socket) {
 								switch(response_header->type) {
 									case INSTRUCTION_OK_TO_COORD:
 										print_and_log_trace(logger, "[OPERATION_SUCCESSFUL][INFORMING_PLANNER]");
-										recieve_data(instance->socket, &instance->free_entries, sizeof(int)); //receiving free_entries from instance
+										recieve_data(instance->socket, &instance->free_entries, sizeof(int)); // Receiving free_entries from instance
 
 										send_message_type(settings.planner_socket, INSTRUCTION_OK_TO_PLANNER);
 
@@ -386,7 +397,8 @@ int get_instance_index_by_alg(char *key) { //TODO algs
 	int value = find_first_Lowercase (key);
 	int inst_number = list_size(instances);
 	InstanceRegistration* inst;
-	switch(settings.dist_alg) {
+
+	switch(settings.dist_alg) { // Switch between distribution algorithm
 		case LSU:
 			list_sort(instances, (void *)max_free_entries_instance);
 			chosen_index = 0;

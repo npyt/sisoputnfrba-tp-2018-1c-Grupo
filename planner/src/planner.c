@@ -87,7 +87,15 @@ int main(int argc, char **argv) {
 }
 
 void * w_thread(int a){
-	sleep(10);
+	while(1){
+		sleep(2);
+		print_and_log_debug(logger, "STATUS");
+		for(int a=0 ; a<allocations->elements_count ; a++) {
+			ResourceAllocation * ra = list_get(allocations, a);
+			print_and_log_debug(logger, "  TY %d %s %d", ra->esi_id, ra->key, ra->type);
+		}
+		print_and_log_debug(logger, "STATUS");
+	}
 }
 
 void * listening_thread(int server_socket) {
@@ -364,8 +372,7 @@ int array_size(char* array[]){
 }
 
 int is_key_free(char key[KEY_NAME_MAX]) {
-	if(get_owner_esi(key) < 0) return 1;
-	return 0;
+	return get_owner_esi(key) == NULL;
 }
 
 int is_key_allocated_by(char key[KEY_NAME_MAX], int esi_id) {
@@ -491,7 +498,7 @@ int get_owner_esi(char key[KEY_NAME_MAX]){
 			return ra->esi_id;
 		}
 	}
-	return -1;
+	return NULL;
 }
 
 int is_esi_waiting(int esi_id){

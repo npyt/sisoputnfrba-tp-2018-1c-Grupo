@@ -66,6 +66,10 @@ void parse_next_instruction() {
 				instruction.type = STORE_OP;
 				strcpy(instruction.key, parsi_instruction.argumentos.STORE.clave);
 				break;
+			default:
+				print_and_log_trace(logger, "[INCORRECT_INSTRUCTION]");
+				exit_with_message("[EXIT]", EXIT_FAILURE);
+				break;
 		}
 		destruir_operacion(parsi_instruction);
 	}

@@ -291,38 +291,23 @@ void * listening_thread(int server_socket) {
 							if(running_esi->estimation)
 								running_esi->estimation--;
 
-							print_and_log_trace(logger, "[JOB COUNTER][%d]", running_esi->job_counter);
+							print_and_log_trace(logger, "[JOB_COUNTER][%d]", running_esi->job_counter);
 							print_and_log_trace(logger, "[ESTIMATION][%f]", running_esi->estimation);
 
 							// Prepare ratio for HRRN
 							if(settings.planning_alg == HRRN)
 								ready_queue = map_list_for_hrrn();
-
 							break;
 						case ESI_FINISHED:
 							print_and_log_trace(logger, "[ESI_SAYS_ITS_DONE]");
-
-
-
 							recieve_data(incoming_socket, &esi_f_id, sizeof(int));
 							print_and_log_trace(logger, "[ESI_ID_%d]", esi_f_id);
-
-							//TODO Liberar recursos geteados por el ESI
-
-							if(running_esi->esi_id == esi_f_id) {
-								running_esi->status = S_FINISHED;
-								print_and_log_trace(logger, "[FINAL ESTIMATION][%f]", running_esi->estimation);
-							}
-							running_esi = NULL;
-							running_now = 0;
+							finish_esi(esi_f_id);
 							break;
 						case ESI_FINISHED_BY_ERROR:
 							recieve_data(incoming_socket, &esi_f_id, sizeof(int));
 							print_and_log_trace(logger, "[ESI_FAILURE]");
-							if(running_esi->esi_id == esi_f_id)
-								running_esi->status = S_FINISHED;
-							running_esi = NULL;
-							running_now = 0;
+							finish_esi(esi_f_id);
 							break;
 
 					}
@@ -522,6 +507,26 @@ int is_esi_waiting(int esi_id){
 
 	return list_any_satisfy(allocations, (void*)_is_esi_waiting);
 }
+t_list * delete_allocations_by_id(int esi_id){
+	bool _filter_by_name(ResourceAllocation * ra){
+		return ra->esi_id != esi_id;
+	}
+	return list_filter(allocations, (void*)_filter_by_name);
+}
+void remove_esi_allocations(int esi_id){
+	allocations = delete_allocations_by_id(esi_id);
+}
+
+void finish_esi(int esi_id){
+	remove_esi_allocations(esi_id);
+	if(running_esi->esi_id == esi_id) {
+		running_esi->status = S_FINISHED;
+		print_and_log_trace(logger, "[FINAL_ESTIMATION][%f]", running_esi->estimation);
+	}
+	running_esi = NULL;
+	running_now = 0;
+}
+
 //t_list * get_by_allocation(AllocationType allocation_type){
 //	bool _filter_by_allocation(ResourceAllocation * ra){
 //		return ra->type == allocation_type;
@@ -591,7 +596,7 @@ void sort_queues() {
 		}
 		if(re->status == S_READY) {
 			re->estimation = estimate(re);
-			print_and_log_trace(logger, "[NEW ESTIMATION][%f]", re->estimation);
+			print_and_log_trace(logger, "[NEW_ESTIMATION][%f]", re->estimation);
 			list_add(ready_queue, list_remove(blocked_queue, a));
 		}
 	}

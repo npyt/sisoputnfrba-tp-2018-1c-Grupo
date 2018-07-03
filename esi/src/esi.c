@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
 		//exit_with_message("No especificó el script ESI.", EXIT_FAILURE);
 		argv[1] = malloc(sizeof(char) * 1024);
-		strcpy(argv[1], "ESI_ERROR");
+		strcpy(argv[1], "ESI_1");
 	}
 
 	config = config_create("config.cfg");
@@ -74,7 +74,7 @@ void parse_next_instruction() {
 				strcpy(instruction.key, parsi_instruction.argumentos.STORE.clave);
 				break;
 			default:
-				exit_with_message("[ERROR READING]", EXIT_FAILURE);
+				exit_with_message("[ERROR_READING]", EXIT_FAILURE);
 				break;
 
 		}

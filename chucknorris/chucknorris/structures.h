@@ -122,6 +122,7 @@ typedef struct {
 	int esi_id;
 	int socket;
 	int rerun_last_instruction;
+	int kill_on_next_run;
 	ESIStatus status;
 
 	float estimation;

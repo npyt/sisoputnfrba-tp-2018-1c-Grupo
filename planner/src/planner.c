@@ -188,6 +188,7 @@ void * listening_thread(int server_socket) {
 							re->esi_id = ESI_name_counter;
 							re->socket = incoming_socket;
 							re->rerun_last_instruction = 0;
+							re->kill_on_next_run = 0;
 							re->status = S_READY;
 							re->estimation= settings.init_est;
 							re->waiting_counter=0;
@@ -205,71 +206,77 @@ void * listening_thread(int server_socket) {
 							print_and_log_trace(logger, "[ASSIGNED_ESTIMATION_%f]", re->estimation);
 							break;
 						case INSTRUCTION_PERMISSION:
-							print_and_log_trace(logger, "[COORDINATOR_ASKS_FOR_PERMISSION_TO_EXECUTE]");
-							InstructionDetail * instruction = malloc(sizeof(InstructionDetail));
-							recieve_data(incoming_socket, instruction, sizeof(InstructionDetail));
+							if(running_esi->kill_on_next_run == 1){
+								running_esi = NULL;
+								running_now = 0;
+								finish_esi(running_esi->esi_id);
+							} else {
+								print_and_log_trace(logger, "[COORDINATOR_ASKS_FOR_PERMISSION_TO_EXECUTE]");
+								InstructionDetail * instruction = malloc(sizeof(InstructionDetail));
+								recieve_data(incoming_socket, instruction, sizeof(InstructionDetail));
 
-							print_instruction(instruction);
+								print_instruction(instruction);
 
-							switch (instruction->type) {
-								case GET_OP:
-									if(is_key_free(instruction->key)) {
-										print_and_log_trace(logger, "[ALLOW_OPERATION]");
-										send_message_type(incoming_socket, INSTRUCTION_ALLOWED);
-									} else {
-										print_and_log_trace(logger, "[BLOCK_OPERATION]");
-										send_message_type(incoming_socket, INSTRUCTION_NOT_ALLOWED);
-
-										if(running_esi->esi_id == instruction->esi_id) {
-											print_and_log_trace(logger, "[BLOCKING_ESI_%d]", running_esi->esi_id);
-
-											ResourceAllocation * ra = malloc(sizeof(ResourceAllocation));
-											ra->esi_id = running_esi->esi_id;
-											strcpy(ra->key, instruction->key);
-											ra->type = WAITING;
-											process_allocation(ra);
-
-											running_esi->status = S_BLOCKED;
-											running_esi->rerun_last_instruction = 1;
-											add_esi_to_blocked(running_esi);
-											running_esi = NULL;
-
-											running_now = 0;
-										}
-									}
-
-									break;
-								case SET_OP:
-									if(key_exists(instruction->key)) {
-										if(is_key_allocated_by(instruction->key, instruction->esi_id)) {
+								switch (instruction->type) {
+									case GET_OP:
+										if(is_key_free(instruction->key)) {
 											print_and_log_trace(logger, "[ALLOW_OPERATION]");
 											send_message_type(incoming_socket, INSTRUCTION_ALLOWED);
 										} else {
 											print_and_log_trace(logger, "[BLOCK_OPERATION]");
 											send_message_type(incoming_socket, INSTRUCTION_NOT_ALLOWED);
+
+											if(running_esi->esi_id == instruction->esi_id) {
+												print_and_log_trace(logger, "[BLOCKING_ESI_%d]", running_esi->esi_id);
+
+												ResourceAllocation * ra = malloc(sizeof(ResourceAllocation));
+												ra->esi_id = running_esi->esi_id;
+												strcpy(ra->key, instruction->key);
+												ra->type = WAITING;
+												process_allocation(ra);
+
+												running_esi->status = S_BLOCKED;
+												running_esi->rerun_last_instruction = 1;
+												add_esi_to_blocked(running_esi);
+												running_esi = NULL;
+
+												running_now = 0;
+											}
 										}
-									} else {
-										print_and_log_trace(logger, "[BLOCK_OPERATION][COMMAND_ESI_ABORTION]");
-										send_message_type(incoming_socket, INSTRUCTION_NOT_ALLOWED_AND_ABORT);
-									}
 
-
-									break;
-								case STORE_OP:
-									if(key_exists(instruction->key)) {
-										if(is_key_allocated_by(instruction->key, instruction->esi_id)) {
-											print_and_log_trace(logger, "[ALLOW_OPERATION]");
-											send_message_type(incoming_socket, INSTRUCTION_ALLOWED);
+										break;
+									case SET_OP:
+										if(key_exists(instruction->key)) {
+											if(is_key_allocated_by(instruction->key, instruction->esi_id)) {
+												print_and_log_trace(logger, "[ALLOW_OPERATION]");
+												send_message_type(incoming_socket, INSTRUCTION_ALLOWED);
+											} else {
+												print_and_log_trace(logger, "[BLOCK_OPERATION]");
+												send_message_type(incoming_socket, INSTRUCTION_NOT_ALLOWED);
+											}
 										} else {
-											print_and_log_trace(logger, "[BLOCK_OPERATION]");
-											send_message_type(incoming_socket, INSTRUCTION_NOT_ALLOWED);
+											print_and_log_trace(logger, "[BLOCK_OPERATION][COMMAND_ESI_ABORTION]");
+											send_message_type(incoming_socket, INSTRUCTION_NOT_ALLOWED_AND_ABORT);
 										}
-									} else {
-										print_and_log_trace(logger, "[BLOCK_OPERATION][COMMAND_ESI_ABORTION]");
-										send_message_type(incoming_socket, INSTRUCTION_NOT_ALLOWED_AND_ABORT);
-									}
 
-									break;
+
+										break;
+									case STORE_OP:
+										if(key_exists(instruction->key)) {
+											if(is_key_allocated_by(instruction->key, instruction->esi_id)) {
+												print_and_log_trace(logger, "[ALLOW_OPERATION]");
+												send_message_type(incoming_socket, INSTRUCTION_ALLOWED);
+											} else {
+												print_and_log_trace(logger, "[BLOCK_OPERATION]");
+												send_message_type(incoming_socket, INSTRUCTION_NOT_ALLOWED);
+											}
+										} else {
+											print_and_log_trace(logger, "[BLOCK_OPERATION][COMMAND_ESI_ABORTION]");
+											send_message_type(incoming_socket, INSTRUCTION_NOT_ALLOWED_AND_ABORT);
+										}
+
+										break;
+								}
 							}
 							break;
 						case NEW_RESOURCE_ALLOCATION:
@@ -303,11 +310,15 @@ void * listening_thread(int server_socket) {
 							recieve_data(incoming_socket, &esi_f_id, sizeof(int));
 							print_and_log_trace(logger, "[ESI_ID_%d]", esi_f_id);
 							finish_esi(esi_f_id);
+							running_esi = NULL;
+							running_now = 0;
 							break;
 						case ESI_FINISHED_BY_ERROR:
 							recieve_data(incoming_socket, &esi_f_id, sizeof(int));
 							print_and_log_trace(logger, "[ESI_FAILURE]");
 							finish_esi(esi_f_id);
+							running_esi = NULL;
+							running_now = 0;
 							break;
 
 					}
@@ -676,8 +687,16 @@ void finish_esi(int esi_id){
 	remove_esi_allocations(esi_id);
 	if(running_esi->esi_id == esi_id) {
 		running_esi->status = S_FINISHED;
-		print_and_log_trace(logger, "[FINAL_ESTIMATION][%f]", running_esi->estimation);
+		print_and_log_trace(logger, "[FINAL_ESTIMATION][%f]",
+				running_esi->estimation);
 	}
-	running_esi = NULL;
-	running_now = 0;
+}
+
+ResourceAllocation * find_allocation_node(int esi_id, int type){
+	bool _allocation_esi_node(ResourceAllocation * some_allocation){
+		return some_allocation->type == type &&
+				some_allocation->esi_id == esi_id;
+	}
+
+	return list_find(allocations, (void*) _allocation_esi_node);
 }

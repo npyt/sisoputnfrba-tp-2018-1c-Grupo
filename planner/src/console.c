@@ -65,7 +65,12 @@ void list(char* resource){
 		free(list);
 	}
 }
-void kill(char* id){
+void kill(char* esi_id){
+	ESIRegistration * victim = search_esi(esi_id);
+
+	if(victim->status != S_RUNNING) finish_esi(esi_id);
+	else victim->kill_on_next_run = 1;
+
 }
 void status(char* key){
 }
@@ -109,15 +114,6 @@ int circular_chain(ResourceAllocation * cycle_element, int cycle_head_id){
 	if(key_owner->esi_id == cycle_head_id) return 1;
 
 	return circular_chain(key_owner, cycle_head_id);
-}
-
-ResourceAllocation * find_allocation_node(int esi_id, int type){
-	bool _allocation_esi_node(ResourceAllocation * some_allocation){
-		return some_allocation->type == type &&
-				some_allocation->esi_id == esi_id;
-	}
-
-	return list_find(get_allocations(), (void*) _allocation_esi_node);
 }
 
 void exit_c(){

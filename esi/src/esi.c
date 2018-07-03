@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
 		//exit_with_message("No especificó el script ESI.", EXIT_FAILURE);
 		argv[1] = malloc(sizeof(char) * 1024);
-		strcpy(argv[1], "ESI_1");
+		strcpy(argv[1], "ESI_ERROR");
 	}
 
 	config = config_create("config.cfg");
@@ -52,6 +52,13 @@ void parse_next_instruction() {
 		parsi_instruction = parse(line);
 
 		instruction.esi_id = settings.id;
+		if(!parsi_instruction.valido){
+			send_message_type(settings.planner_socket, ESI_FINISHED_BY_ERROR);
+			send_data(settings.planner_socket, &settings.id, sizeof(int));
+			finished = 1;
+			print_and_log_trace(logger, "[INCORRECT_INSTRUCTION]");
+			exit_with_message("[EXIT_INCORRECT_INSTRUCTION]\n", EXIT_FAILURE);
+		}
 		switch(parsi_instruction.keyword) {
 			case GET:
 				instruction.type = GET_OP;
@@ -67,9 +74,9 @@ void parse_next_instruction() {
 				strcpy(instruction.key, parsi_instruction.argumentos.STORE.clave);
 				break;
 			default:
-				print_and_log_trace(logger, "[INCORRECT_INSTRUCTION]");
-				exit_with_message("[EXIT]", EXIT_FAILURE);
+				exit_with_message("[ERROR READING]", EXIT_FAILURE);
 				break;
+
 		}
 		destruir_operacion(parsi_instruction);
 	}

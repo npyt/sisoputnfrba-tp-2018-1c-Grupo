@@ -100,9 +100,8 @@ void * w_thread(int a){
 
 void * listening_thread(int server_socket) {
 	int clients[MAX_SERVER_CLIENTS];
-	int a, max_sd, activity_socket, incoming_socket;
+	int a, max_sd, activity_socket, incoming_socket, esi_f_id;
 	fd_set master_set;
-
 	int coordinator_socket = connect_with_server(settings.coord_ip, settings.coord_port);
 
 	for(a=0 ; a<MAX_SERVER_CLIENTS ; a++) {
@@ -303,7 +302,7 @@ void * listening_thread(int server_socket) {
 						case ESI_FINISHED:
 							print_and_log_trace(logger, "[ESI_SAYS_ITS_DONE]");
 
-							int esi_f_id;
+
 
 							recieve_data(incoming_socket, &esi_f_id, sizeof(int));
 							print_and_log_trace(logger, "[ESI_ID_%d]", esi_f_id);
@@ -317,6 +316,15 @@ void * listening_thread(int server_socket) {
 							running_esi = NULL;
 							running_now = 0;
 							break;
+						case ESI_FINISHED_BY_ERROR:
+							recieve_data(incoming_socket, &esi_f_id, sizeof(int));
+							print_and_log_trace(logger, "[ESI_FAILURE]");
+							if(running_esi->esi_id == esi_f_id)
+								running_esi->status = S_FINISHED;
+							running_esi = NULL;
+							running_now = 0;
+							break;
+
 					}
 
 					free(header);
@@ -514,6 +522,12 @@ int is_esi_waiting(int esi_id){
 
 	return list_any_satisfy(allocations, (void*)_is_esi_waiting);
 }
+//t_list * get_by_allocation(AllocationType allocation_type){
+//	bool _filter_by_allocation(ResourceAllocation * ra){
+//		return ra->type == allocation_type;
+//	}
+//	return list_filter(allocations, (void*)_filter_by_allocation);
+//}
 
 t_list * get_waiting_allocations(){
 	t_list * ret = list_duplicate(allocations);

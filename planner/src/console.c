@@ -75,7 +75,7 @@ void deadlock(){
 	printf("Procesos en deadlock:\n");
 	ResourceAllocation * ra;
 
-	t_list * waiting_allocations = get_waiting_allocations();
+	t_list * waiting_allocations = get_by_allocation_type(WAITING);
 
 	for(int i = 0; i < waiting_allocations->elements_count; i++){
 		ra = list_get(waiting_allocations, i);

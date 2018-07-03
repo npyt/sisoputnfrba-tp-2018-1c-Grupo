@@ -396,6 +396,19 @@ void block_resource_with_esi(char key[KEY_NAME_MAX], int esi_id) {
 	print_and_log_trace(logger, "[BLOCKED_KEY][%s][ESI_%d]", key, ra->esi_id);
 }
 
+//void unlock_resource_with_esi(char key[KEY_NAME_MAX], int esi_id){
+//	bool _by_resource_taken_by_esi(ResourceAllocation * ra){
+//		if(strcmp(ra->key, key) == 0 && ra->esi_id == esi_id && ra->type == BLOCKED){
+//			print_and_log_trace(logger, "[RELEASED_KEY][%s][ESI_%d]", key, ra->esi_id);
+//			free_esis_waiting_for(key);
+//			return false;
+//		}else{
+//			return true;
+//		}
+//	}
+//	allocations = list_filter(allocations, (void*)_by_resource_taken_by_esi);
+//}
+
 void unlock_resource_with_esi(char key[KEY_NAME_MAX], int esi_id) {
 	int a;
 	for(a=0 ; a<allocations->elements_count ; a++) {
@@ -425,6 +438,18 @@ void unlock_resource_all(char key[KEY_NAME_MAX]) {
 	}
 }
 
+//void free_esis_waiting_for(char key[KEY_NAME_MAX]){
+//	bool _by_key_unlocked(ResourceAllocation * ra){
+//		if(strcmp(ra->key, key) == 0 && ra->type == WAITING){
+//			print_and_log_trace(logger, "[NO_LONGER_WAITING][%s][ESI_%d]", key, ra->esi_id);
+//			return false;
+//		}else{
+//			return true;
+//		}
+//	}
+//	allocations = list_filter(allocations, (void*)_by_key_unlocked);
+//}
+
 void free_esis_waiting_for(char key[KEY_NAME_MAX]) {
 	fflush(stdout);
 	int a;
@@ -438,6 +463,45 @@ void free_esis_waiting_for(char key[KEY_NAME_MAX]) {
 	}
 }
 
+//int key_exists(char key[KEY_NAME_MAX]){
+//	bool _by_key_existence(ResourceAllocation * ra){
+//		return strcmp(ra->key, key) == 0;
+//	}
+//	return list_any_satisfy(allocations, (void*)_by_key_existence);
+//}
+
+int key_exists(char key[KEY_NAME_MAX]) {
+	int a;
+	for(a=allocations->elements_count-1 ; 0<=a ; a--) {
+		ResourceAllocation * ra = list_get(allocations, a);
+		if(strcmp(ra->key, key) == 0) return 1;
+	}
+	return 0;
+}
+
+//int get_owner_esi(char key[KEY_NAME_MAX]){
+//	bool _by_owner_esi(ResourceAllocation * ra){
+//		return strcmp(ra->key, key) == 0 && ra->type == BLOCKED;
+//	}
+//	ResourceAllocation * ra = list_find(allocations, (void*)_by_owner_esi);
+//	return ra->esi_id;
+//}
+
+int get_owner_esi(char key[KEY_NAME_MAX]){
+	int a;
+	for(a=allocations->elements_count-1 ; 0<=a ; a--) {
+		ResourceAllocation * ra = list_get(allocations, a);
+		if(strcmp(ra->key, key) == 0 &&
+				ra->type == BLOCKED) {
+			return ra->esi_id;
+		}
+	}
+	return NULL;
+}
+
+/*
+ * FOR CONSOLE USES
+ */
 ESIRegistration * search_esi(int esi_id) {
 	int a;
 	if(running_esi != NULL) {
@@ -460,6 +524,13 @@ ESIRegistration * search_esi(int esi_id) {
 	return NULL;
 }
 
+//t_list * search_esis_waiting_for(char key[KEY_NAME_MAX]){
+//	bool _by_waiting_key(ResourceAllocation * ra){
+//		return strcmp(ra->key, key) == 0 && ra->type == WAITING;
+//	}
+//	return list_filter(allocations, (void*)_by_waiting_key);
+//}
+
 t_list * search_esis_waiting_for(char key[KEY_NAME_MAX]) {
 	int a;
 	t_list * list = list_create();
@@ -473,85 +544,41 @@ t_list * search_esis_waiting_for(char key[KEY_NAME_MAX]) {
 	return list;
 }
 
-int key_exists(char key[KEY_NAME_MAX]) {
-	int a;
-	for(a=allocations->elements_count-1 ; 0<=a ; a--) {
-		ResourceAllocation * ra = list_get(allocations, a);
-		if(strcmp(ra->key, key) == 0) return 1;
-	}
-	return 0;
-}
-
-int get_owner_esi(char key[KEY_NAME_MAX]){
-	int a;
-	for(a=allocations->elements_count-1 ; 0<=a ; a--) {
-		ResourceAllocation * ra = list_get(allocations, a);
-		if(strcmp(ra->key, key) == 0 &&
-				ra->type == BLOCKED) {
-			return ra->esi_id;
-		}
-	}
-	return NULL;
-}
-
 int is_esi_waiting(int esi_id){
 	/*No todos los ESI de la blocked queue fueron bloqueados
 	 * por estar esperando un recurso ya que tambien se los puede
 	 * bloquear por consola
 	 */
-
 	int _is_esi_waiting(ResourceAllocation * some_allocation){
 		return some_allocation->esi_id == esi_id &&
 				some_allocation->type == WAITING;
 	}
-
 	return list_any_satisfy(allocations, (void*)_is_esi_waiting);
 }
-t_list * delete_allocations_by_id(int esi_id){
-	bool _filter_by_name(ResourceAllocation * ra){
-		return ra->esi_id != esi_id;
+
+t_list * get_by_allocation_type(AllocationType allocation_type){
+	bool _filter_by_allocation(ResourceAllocation * ra){
+		return ra->type == allocation_type;
 	}
-	return list_filter(allocations, (void*)_filter_by_name);
-}
-void remove_esi_allocations(int esi_id){
-	allocations = delete_allocations_by_id(esi_id);
+	return list_filter(allocations, (void*)_filter_by_allocation);
 }
 
-void finish_esi(int esi_id){
-	remove_esi_allocations(esi_id);
-	if(running_esi->esi_id == esi_id) {
-		running_esi->status = S_FINISHED;
-		print_and_log_trace(logger, "[FINAL_ESTIMATION][%f]", running_esi->estimation);
-	}
-	running_esi = NULL;
-	running_now = 0;
+t_list * get_allocations(){
+	return allocations;
 }
 
-//t_list * get_by_allocation(AllocationType allocation_type){
-//	bool _filter_by_allocation(ResourceAllocation * ra){
-//		return ra->type == allocation_type;
-//	}
-//	return list_filter(allocations, (void*)_filter_by_allocation);
-//}
-
-t_list * get_waiting_allocations(){
-	t_list * ret = list_duplicate(allocations);
-	ResourceAllocation * ra;
-
-	for(int i = 0; i < ret->elements_count; i++){
-		ra = list_get(ret, i);
-		if(ra->type != WAITING) list_remove(ret, i);
-	}
-
-	return ret;
-}
-
+/*
+ * ESTIMATION
+ */
 float estimate(ESIRegistration*esi){
 	float alpha = settings.alpha;
 	float estimation = (alpha/100)*(esi->job_counter) + (1-(alpha/100))*(esi->estimation);
 	return estimation;
 }
 
+/*
+ * RATIO
+ */
 t_list* map_list_for_hrrn() {
     ESIRegistration* _map_list_hrrn_info(ESIRegistration *one) {
     	one->waiting_counter++;
@@ -572,6 +599,9 @@ void sort_by_ratio() {
     list_sort(ready_queue, (void*)_sort_ratio_esi);
 }
 
+/*
+ * BURST
+ */
 void sort_by_burst() {
     int _sort_burst_esi(ESIRegistration * one, ESIRegistration * two) {
         return (one->estimation<two->estimation);
@@ -580,6 +610,9 @@ void sort_by_burst() {
     	list_sort(ready_queue, (void*)_sort_burst_esi);
 }
 
+/*
+ * SORT
+ */
 void sort_queues() {
 	int a, b;
 	//At the end of the function, running_esi must be allocated
@@ -625,6 +658,26 @@ void sort_queues() {
 	}
 }
 
-t_list * get_allocations(){
-	return allocations;
+/*
+ * FINISH
+ */
+t_list * delete_allocations_by_id(int esi_id){
+	bool _filter_by_name(ResourceAllocation * ra){
+		return ra->esi_id != esi_id;
+	}
+	return list_filter(allocations, (void*)_filter_by_name);
+}
+
+void remove_esi_allocations(int esi_id){
+	allocations = delete_allocations_by_id(esi_id);
+}
+
+void finish_esi(int esi_id){
+	remove_esi_allocations(esi_id);
+	if(running_esi->esi_id == esi_id) {
+		running_esi->status = S_FINISHED;
+		print_and_log_trace(logger, "[FINAL_ESTIMATION][%f]", running_esi->estimation);
+	}
+	running_esi = NULL;
+	running_now = 0;
 }

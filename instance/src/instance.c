@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
 		//exit_with_message("No especificó el archivo de configuración.", EXIT_FAILURE);
 		argv[1] = malloc(sizeof(char) * 1024);
-		strcpy(argv[1], "config.cfg");
+		strcpy(argv[1], "config3.cfg");
 	}
 
 	config = config_create(argv[1]);
@@ -376,7 +376,24 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 					}
 					break;
 				case BSU:
+				{
+					int bsu_index = -1;
+					int bsu_size =  -1;
+					StorageCell* sc;
+					for(int a=0; a<storage_cells->elements_count; a++){
+					sc = list_get(storage_cells, a);
+
+					if(sc->atomic_value){
+						if(sc->content_size > bsu_size){
+							bsu_size = sc->content_size;
+							bsu_index = a;
+						}
+					}
+				}
+					sc = list_get(storage_cells, bsu_index);
+					free_cell(sc);
 					break;
+				}
 			}
 		}
 		{ //Once I got the free ones, loop to seek adjoining cells
@@ -427,6 +444,7 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 		cell->content = malloc(cell->content_size);
 		cell->last_reference = local_operation_counter;
 		memcpy(cell->content, value+q*entry_settings.entry_size, entry_settings.entry_size);
+		cell->content_size = strlen(cell->content);
 
 		if(rs->cell_id + q > last_used_cell) {
 			last_used_cell = rs->cell_id + q;

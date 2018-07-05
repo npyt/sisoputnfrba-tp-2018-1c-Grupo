@@ -418,6 +418,9 @@ int get_instance_index_by_alg(char *key) { //TODO algs
 				}
 			}
 			break;
+
+		default:
+			print_and_log_error(logger, "[DISTRIBUTION ALGORITHM NOT VALID][PLEASE SET A VALID DISTRIBUTION ALGORITHM]");
 	}
 	return chosen_index;
 }

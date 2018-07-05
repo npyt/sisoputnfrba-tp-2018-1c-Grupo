@@ -192,6 +192,7 @@ typedef struct {
 	char name[INSTANCE_NAME_MAX];
 	int dump;
 	int free_entries;
+	int atomic_entries;
 } InstanceConfig;
 
 typedef struct {

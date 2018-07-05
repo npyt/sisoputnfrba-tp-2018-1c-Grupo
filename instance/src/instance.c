@@ -14,7 +14,7 @@ int local_operation_counter;
 
 void * listening_thread(int server_socket);
 
-ResourceStorage * get_key(char key[KEY_NAME_MAX]);
+ResourceStorage * get_key(char key[KEY_NAME_MAX], int force_creation);
 
 int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
@@ -168,6 +168,7 @@ void prepare_storage() {
 
 	//Start administrative structures for replacement algorithms
 	settings.free_entries = entry_settings.entry_count;
+	settings.atomic_entries = 0;
 	last_used_cell = -1;
 }
 
@@ -180,14 +181,14 @@ int process_instruction(InstructionDetail * instruction) {
 	switch(instruction->type) {
 		//Instance doesnt process GET op, Issue #1082
 		case SET_OP:
-			if((rs = get_key(instruction->key)) != NULL) {
+			if((rs = get_key(instruction->key, 1)) != NULL) {
 				return set_storage(rs, instruction->opt_value);
 			} else {
 				return 0;
 			}
 			break;
 		case STORE_OP:
-			if((rs = get_key(instruction->key)) != NULL) {
+			if((rs = get_key(instruction->key, 0)) != NULL) {
 				return store_storage(rs);
 			} else {
 				return 0;
@@ -253,7 +254,7 @@ int compact() {
 	return destination_cell;
 }
 
-ResourceStorage * get_key(char key[KEY_NAME_MAX]) {
+ResourceStorage * get_key(char key[KEY_NAME_MAX], int force_creation) {
 	int a, found = 0;
 	for(a=0 ; a<resources->elements_count ; a++) {
 		ResourceStorage * rs = list_get(resources, a);
@@ -262,7 +263,7 @@ ResourceStorage * get_key(char key[KEY_NAME_MAX]) {
 			return rs;
 		}
 	}
-	if(found == 0) {
+	if(found == 0 && force_creation) {
 		ResourceStorage * rs = malloc(sizeof(ResourceStorage));
 		rs->cell_id = -1;
 		rs->size = 0;
@@ -305,6 +306,24 @@ int are_there_n_atomic_or_free_cells_from(int start_index, int n_cells) {
 	return 1;
 }
 
+void free_cell(StorageCell * sc) {
+	settings.free_entries++;
+	settings.atomic_entries--;
+
+	for(int a=0 ; a<resources->elements_count ; a++) {
+		ResourceStorage * rs = list_get(resources, a);
+		if(rs->cell_id == sc->id) {
+			list_remove(resources, a);
+		}
+	}
+
+	sc->atomic_value = 0;
+	free(sc->content);
+	sc->content = NULL;
+	sc->content_size = 0;
+	sc->last_reference = -1;
+}
+
 int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 	int bytes_needed = strlen(value) * sizeof(char);
 	float cells_nedded_f = (float)bytes_needed / (float)entry_settings.entry_size;
@@ -314,20 +333,26 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 	}
 
 	if(rs->cell_id == -1) { //If its first SET op on key
-		if(cells_nedded > entry_settings.entry_count) {
+		if(cells_nedded > entry_settings.entry_count ||
+				cells_nedded > settings.free_entries + settings.atomic_entries) {
 			return -1;
 		}
 
-		if(cells_nedded > settings.free_entries) { //Must replace
-			int final_index = -1;
+		while(cells_nedded > settings.free_entries) { //Must replace
+			int freed = -1;
 			switch(settings.replacement_alg) {
 				case CIRC:
-					for(int tries=0 ; tries<entry_settings.entry_count && final_index == -1; tries++) {
-						last_used_cell++;
-						if(last_used_cell >= storage_cells->elements_count) { last_used_cell = 0; }
+					{
+						StorageCell * sc;
+						for(int tries=0 ; tries<entry_settings.entry_count && freed == -1; tries++) {
+							last_used_cell++;
+							if(last_used_cell >= storage_cells->elements_count) { last_used_cell = 0; }
 
-						if(are_there_n_atomic_or_free_cells_from(last_used_cell, cells_nedded) == 1) {
-							final_index = last_used_cell;
+							sc = list_get(storage_cells, last_used_cell);
+							if(sc->atomic_value) {
+								free_cell(sc);
+								freed = 1;
+							}
 						}
 					}
 					break;
@@ -340,32 +365,35 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 						for(int a=0 ; a<storage_cells->elements_count ; a++) {
 							sc = list_get(storage_cells, a);
 							if(sc->last_reference < min_lsu) {
-								if(are_there_n_atomic_or_free_cells_from(a, cells_nedded) == 1) {
+								if(sc->atomic_value) {
 									min_lsu = sc->last_reference;
 									index_lsu = a;
 								}
 							}
 						}
-						final_index = index_lsu;
+						sc = list_get(storage_cells, index_lsu);
+						free_cell(sc);
 					}
 					break;
 				case BSU:
 					break;
 			}
-			//TODO What happens with replaced values ???
-			rs->cell_id = final_index;
-		} else {
+		}
+		{ //Once I got the free ones, loop to seek adjoining cells
+			for(int a=0 ; a<entry_settings.entry_count && rs->cell_id == -1; a++) {
+				if(are_there_n_free_cells_from(a, cells_nedded)) {
+					rs->cell_id = a;
+					last_used_cell = a;
+				}
+			}
 			last_used_cell++;
 			if(last_used_cell == storage_cells->elements_count) { last_used_cell = 0; }
 
-			if(are_there_n_free_cells_from(last_used_cell, cells_nedded) == 1) { //See if there is free space from last used
-				rs->cell_id = last_used_cell;
-			} else { //If not, must compact and look again from last position
+			if(rs->cell_id == -1) {
 				last_used_cell = compact();
 				rs->cell_id = last_used_cell;
 			}
 		}
-
 	} else {
 		if (cells_nedded > rs->cell_count) return -1;
 	}
@@ -379,6 +407,9 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 		cell->content_size = 0;
 		cell->last_reference = -1;
 		settings.free_entries++;
+	}
+	if(rs->cell_count == 1) {
+		settings.atomic_entries--;
 	}
 	rs->cell_count = cells_nedded;
 
@@ -401,6 +432,9 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 			last_used_cell = rs->cell_id + q;
 		}
 		print_and_log_trace(logger, "[ENTRY_%d][ATOMIC_%d][VALUE_%s]", cell->id, cell->atomic_value, cell->content);
+	}
+	if(cells_nedded == 1) {
+		settings.atomic_entries++;
 	}
 	return 1;
 }

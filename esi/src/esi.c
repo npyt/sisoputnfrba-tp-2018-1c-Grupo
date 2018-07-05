@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
 		//exit_with_message("No especificó el script ESI.", EXIT_FAILURE);
 		argv[1] = malloc(sizeof(char) * 1024);
-		strcpy(argv[1], "ESI_Largo");
+		strcpy(argv[1], "ESI_TEST");
 	}
 
 	config = config_create("config.cfg");

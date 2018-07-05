@@ -674,6 +674,9 @@ void sort_queues() {
  */
 t_list * delete_allocations_by_id(int esi_id){
 	bool _filter_by_name(ResourceAllocation * ra){
+		if(ra->esi_id == esi_id){
+			free_esis_waiting_for(ra->key);
+		}
 		return ra->esi_id != esi_id;
 	}
 	return list_filter(allocations, (void*)_filter_by_name);

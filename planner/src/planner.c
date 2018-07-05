@@ -107,8 +107,7 @@ void * listening_thread(int server_socket) {
 	for(a=0 ; a<MAX_SERVER_CLIENTS ; a++) {
 		clients[a] = 0;
 	}
-	clients[0] = server_socket;
-	clients[1] = coordinator_socket;
+	clients[0] = coordinator_socket;
 
 	if(listen(server_socket, MAX_SERVER_CLIENTS) == -1) {
 		print_and_log_trace(logger, "[FAILED_TO_OPEN_LISTEN_AT_PORT]");

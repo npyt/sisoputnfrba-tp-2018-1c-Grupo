@@ -95,8 +95,8 @@ void status(char* key){
 		printf("- ESI %d\n", some_waiting_esi_id);
 	}
 
-	free(sd);
 	list_destroy(sd->waiting_esis);
+	free(sd);
 }
 
 void deadlock(){

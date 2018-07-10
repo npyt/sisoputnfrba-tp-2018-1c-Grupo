@@ -182,10 +182,9 @@ void * listening_thread(int server_socket) {
 							strcpy(sd->key_value, value);
 							free(value);
 						}
-
-						send_data(incoming_socket, sd, sizeof(sd));
-						free(sd);
 					}
+					send_data(incoming_socket, sd, sizeof(sd));
+					free(sd);
 					break;
 			}
 			free(header);

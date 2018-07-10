@@ -148,8 +148,8 @@ void * listening_thread(int coordinator_socket) {
 
 							char stored_value[KEY_VALUE_MAX];
 
-							StorageCell * cell;
-							strcpy(stored_value, list_get(storage_cells, rs->cell_id));
+							StorageCell * cell = list_get(storage_cells, rs->cell_id);
+							strcpy(stored_value, cell->content);
 							for(int q=1 ; q<rs->cell_count ; q++){
 								cell = list_get(storage_cells, rs->cell_id + q);
 								strcat(stored_value, cell->content);

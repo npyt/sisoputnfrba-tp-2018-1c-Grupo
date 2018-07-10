@@ -140,6 +140,23 @@ void * listening_thread(int coordinator_socket) {
 								send_message_type(incoming_socket, INSTRUCTION_FAILED_TO_COORD);
 							}
 							break;
+						case COORD_ASKS_FOR_KEY_VALUE:
+							; //Statement vacio (C no permite declaraciones despues de etiquetas)
+							ResourceStorage * rs = malloc(sizeof(ResourceStorage));
+
+							rs = get_key(header->comment, 0);
+
+							char stored_value[KEY_VALUE_MAX];
+
+							StorageCell * cell;
+							strcpy(stored_value, list_get(storage_cells, rs->cell_id));
+							for(int q=1 ; q<rs->cell_count ; q++){
+								cell = list_get(storage_cells, rs->cell_id + q);
+								strcat(stored_value, cell->content);
+							}
+
+							send_data(incoming_socket, stored_value, sizeof(char) * KEY_VALUE_MAX);
+							break;
 					}
 
 					free(header);
@@ -326,19 +343,19 @@ void free_cell(StorageCell * sc) {
 
 int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 	int bytes_needed = strlen(value) * sizeof(char);
-	float cells_nedded_f = (float)bytes_needed / (float)entry_settings.entry_size;
-	int cells_nedded = bytes_needed / entry_settings.entry_size;
-	if(cells_nedded_f > cells_nedded) {
-		cells_nedded++;
+	float cells_needed_f = (float)bytes_needed / (float)entry_settings.entry_size;
+	int cells_needed = bytes_needed / entry_settings.entry_size;
+	if(cells_needed_f > cells_needed) {
+		cells_needed++;
 	}
 
 	if(rs->cell_id == -1) { //If its first SET op on key
-		if(cells_nedded > entry_settings.entry_count ||
-				cells_nedded > settings.free_entries + settings.atomic_entries) {
+		if(cells_needed > entry_settings.entry_count ||
+				cells_needed > settings.free_entries + settings.atomic_entries) {
 			return -1;
 		}
 
-		while(cells_nedded > settings.free_entries) { //Must replace
+		while(cells_needed > settings.free_entries) { //Must replace
 			int freed = -1;
 			switch(settings.replacement_alg) {
 				case CIRC:
@@ -398,7 +415,7 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 		}
 		{ //Once I got the free ones, loop to seek adjoining cells
 			for(int a=0 ; a<entry_settings.entry_count && rs->cell_id == -1; a++) {
-				if(are_there_n_free_cells_from(a, cells_nedded)) {
+				if(are_there_n_free_cells_from(a, cells_needed)) {
 					rs->cell_id = a;
 					last_used_cell = a;
 				}
@@ -412,7 +429,7 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 			}
 		}
 	} else {
-		if (cells_nedded > rs->cell_count) return -1;
+		if (cells_needed > rs->cell_count) return -1;
 	}
 
 	rs->size = strlen(value) * sizeof(char);
@@ -428,13 +445,13 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 	if(rs->cell_count == 1) {
 		settings.atomic_entries--;
 	}
-	rs->cell_count = cells_nedded;
+	rs->cell_count = cells_needed;
 
 	print_and_log_trace(logger, "[START_ALLOCATION][KEY_%s][INIT_ENTRY_%d]", rs->key, rs->cell_id);
 
-	for(int q=0 ; q<cells_nedded ;q++) {
+	for(int q=0 ; q<cells_needed ;q++) {
 		StorageCell * cell = list_get(storage_cells, rs->cell_id + q);
-		if(cells_nedded == 1) {
+		if(cells_needed == 1) {
 			cell->atomic_value = 1;
 		} else {
 			cell->atomic_value = 0;
@@ -451,7 +468,7 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 		}
 		print_and_log_trace(logger, "[ENTRY_%d][ATOMIC_%d][VALUE_%s]", cell->id, cell->atomic_value, cell->content);
 	}
-	if(cells_nedded == 1) {
+	if(cells_needed == 1) {
 		settings.atomic_entries++;
 	}
 	return 1;

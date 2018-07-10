@@ -14,11 +14,15 @@ PlannerConfig settings;
 int ESI_name_counter;
 int running_now;
 
+int mutex;
+
 void * listening_thread(int server_socket);
 void * running_thread(int a);
 void * w_thread(int a);
 float ratio(ESIRegistration * esi);
 t_list* map_list_for_hrrn();
+StatusData * get_status(char*);
+void finish_esi(int);
 
 
 int main(int argc, char **argv) {
@@ -103,6 +107,7 @@ void * listening_thread(int server_socket) {
 	int a, max_sd, activity_socket, incoming_socket, esi_f_id;
 	fd_set master_set;
 	int coordinator_socket = connect_with_server(settings.coord_ip, settings.coord_port);
+	settings.coord_socket = coordinator_socket;
 
 	for(a=0 ; a<MAX_SERVER_CLIENTS ; a++) {
 		clients[a] = 0;
@@ -170,6 +175,9 @@ void * listening_thread(int server_socket) {
 					//New message
 
 					MessageHeader * header = malloc(sizeof(MessageHeader));
+
+					while(mutex == 1){}
+					mutex = 1;
 
 					switch(i_header->type) {
 						case TEST:
@@ -326,6 +334,7 @@ void * listening_thread(int server_socket) {
 
 				}
 				free(i_header);
+				mutex = 0;
 			}
 		}
 	}
@@ -701,4 +710,22 @@ ResourceAllocation * find_allocation_node(int esi_id, int type){
 	}
 
 	return list_find(allocations, (void*) _allocation_esi_node);
+}
+
+StatusData * get_status(char * key){
+
+	StatusData * sd = malloc(sizeof(StatusData));
+
+	MessageHeader * header = malloc(sizeof(MessageHeader));
+	header->type = GET_KEY_STATUS;
+	strcpy(header->comment, key);
+
+	while(mutex == 1){}
+	mutex = 1;
+	send_header(settings.coord_socket, header);
+	recieve_data(settings.coord_socket, sd, sizeof(StatusData));
+	mutex = 0;
+
+	sd->waiting_esis = search_esis_waiting_for(key);
+	return sd;
 }

@@ -31,6 +31,9 @@ typedef enum {
 	INSTRUCTION_OK_TO_PLANNER,
 	INSTRUCTION_FAILED_TO_ESI,
 
+	GET_KEY_STATUS,
+	COORD_ASKS_FOR_KEY_VALUE,
+
 	NEW_RESOURCE_ALLOCATION,
 
 	EXECUTE_NEXT_INSTRUCTION,
@@ -96,6 +99,7 @@ typedef struct {
 	int init_est;
 	char coord_ip[IP_LENGTH_MAX];
 	int coord_port;
+	int coord_socket;
 	char blocked_keys;
 } PlannerConfig;
 
@@ -209,5 +213,14 @@ typedef struct {
 	int cell_id;
 	int cell_count;
 } ResourceStorage;
+
+typedef struct {
+	char key_value[KEY_VALUE_MAX];
+	char actual_storage[INSTANCE_NAME_MAX];
+	char simulated_storage[INSTANCE_NAME_MAX];
+	int storage_exists;
+	int storage_isup;
+	t_list * waiting_esis;
+} StatusData;
 
 #endif /* CHUCKNORRIS_STRUCTURES_H_ */

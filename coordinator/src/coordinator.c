@@ -18,8 +18,9 @@ InstanceRegistration * get_instance_for_process(InstructionDetail * instruction)
 InstanceRegistration * search_instance_by_name(char name[INSTANCE_NAME_MAX]);
 void instance_limit_calculation();
 int find_first_Lowercase (char *key);
-int get_instance_index_by_alg(char *key);
-
+int get_instance_index_by_alg(char* key, int simulation_mode);
+char * get_instance_name_by_alg(char* key, int simulation_mode);
+ResourceRegistration * search_resource(char key[KEY_NAME_MAX]);
 
 int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
@@ -150,6 +151,41 @@ void * listening_thread(int server_socket) {
 
 					pthread_t esi_thread_id;
 					pthread_create(&esi_thread_id, NULL, esi_thread, incoming_socket);
+					break;
+				case GET_KEY_STATUS:
+					; //Statement vacio (C no permite declaraciones despues de etiquetas)
+					char query_key[KEY_NAME_MAX];
+					strcpy(query_key, header->comment);
+					print_and_log_trace(logger, "[CONSOLE_ASKS_FOR_%s_STATUS]", query_key);
+
+					StatusData * sd = malloc(sizeof(StatusData));
+					sd->storage_exists = 0;
+					sd->storage_isup = 0;
+
+					InstanceRegistration *storage = search_resource(query_key)->instance;
+					strcpy(sd->simulated_storage, get_instance_name_by_alg(query_key, 1));
+
+					if(storage){ //si se le asigno algun valor a la key
+						strcpy(sd->actual_storage, storage->name);
+						sd->storage_exists = 1;
+
+						if(storage->isup){
+							//Si su instancia no esta caida
+							sd->storage_isup = 1;
+							strcpy(sd->simulated_storage, sd->actual_storage);
+
+							header->type = COORD_ASKS_FOR_KEY_VALUE; //Reutilizo header recibido por plani (la key esta en header->comment)
+							send_header(storage->socket, header);
+
+							char * value = malloc(sizeof(char) * KEY_VALUE_MAX);
+							recieve_data(storage->socket, value, sizeof(char) * KEY_VALUE_MAX);
+							strcpy(sd->key_value, value);
+							free(value);
+						}
+
+						send_data(incoming_socket, sd, sizeof(sd));
+						free(sd);
+					}
 					break;
 			}
 			free(header);
@@ -350,7 +386,7 @@ InstanceRegistration * get_instance_for_process(InstructionDetail * instruction)
 	} else {
 		ResourceRegistration * re = search_resource(instruction->key);
 		if(re->instance == NULL) {
-			re->instance = list_get(instances, get_instance_index_by_alg(instruction->key));
+			re->instance = list_get(instances, get_instance_index_by_alg(instruction->key, 0));
 		}
 		return re->instance;
 	}
@@ -392,7 +428,7 @@ bool max_free_entries_instance(InstanceRegistration *instance_1, InstanceRegistr
 	return (instance_1->free_entries > instance_2->free_entries);
 }
 
-int get_instance_index_by_alg(char *key) { //TODO algs
+int get_instance_index_by_alg(char *key, int simulation_mode) { //TODO algs
 	int chosen_index = 0;
 	int value = find_first_Lowercase (key);
 	int inst_number = list_size(instances);
@@ -404,9 +440,11 @@ int get_instance_index_by_alg(char *key) { //TODO algs
 			chosen_index = 0;
 			break;
 		case EL:
-			last_used_instance++;
-			if(last_used_instance == instances->elements_count) {
-				last_used_instance = 0;
+			if(simulation_mode == 0){
+				last_used_instance++;
+				if(last_used_instance == instances->elements_count) {
+					last_used_instance = 0;
+				}
 			}
 			chosen_index = last_used_instance;
 			break;
@@ -423,4 +461,11 @@ int get_instance_index_by_alg(char *key) { //TODO algs
 			print_and_log_error(logger, "[DISTRIBUTION ALGORITHM NOT VALID][PLEASE SET A VALID DISTRIBUTION ALGORITHM]");
 	}
 	return chosen_index;
+}
+
+char * get_instance_name_by_alg(char* key, int simulation_mode){
+	InstanceRegistration * inst =
+			list_get(instances, get_instance_index_by_alg(key, simulation_mode));
+
+	return inst->name;
 }

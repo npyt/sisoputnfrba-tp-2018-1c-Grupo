@@ -65,14 +65,38 @@ void list(char* resource){
 		free(list);
 	}
 }
-void kill(char* esi_id){
+void kill(char* esi_id_str){
+	int esi_id = atoi(esi_id_str);
 	ESIRegistration * victim = search_esi(esi_id);
 
 	if(victim->status != S_RUNNING) finish_esi(esi_id);
 	else victim->kill_on_next_run = 1;
-
 }
+
 void status(char* key){
+	StatusData * sd = get_status(key);
+	int some_waiting_esi_id; //TODO esi name
+
+	if(sd->storage_isup && sd->storage_exists){
+		printf("Valor de %s: %s\n", key, sd->key_value);
+		printf("El valor de la clave se almacena en la instancia %s\n", sd->actual_storage);
+	} else {
+		if(sd->storage_exists){ //el sistema sabe que instancia le corresponde pero no se pudo obtener el valor
+			printf("La instancia que almacena el valor de %s está caida\n", key);
+			printf("El valor se guardaría en la instancia %s\n", sd->simulated_storage);
+		} else
+			printf("La clave no existe. Su valor se guardaría en la instancia %s\n", sd->simulated_storage);
+	}
+
+	printf("%d ESIs esperando la key:\n", sd->waiting_esis->elements_count);
+
+	for(int i = 0; i < sd->waiting_esis->elements_count; i++){
+		some_waiting_esi_id = list_get(sd->waiting_esis, i);
+		printf("- ESI %d\n", some_waiting_esi_id);
+	}
+
+	free(sd);
+	list_destroy(sd->waiting_esis);
 }
 
 void deadlock(){
@@ -98,12 +122,6 @@ int deadlock_check(ResourceAllocation * waiting_esi){
 }
 
 int circular_chain(ResourceAllocation * cycle_element, int cycle_head_id){
-
-	/*
-	 * Devuelve true si existe una espera circular
-	 * A efectos del TP, una espera circular implica deadlock
-	 * ya que todos los recursos tienen una instancia como maximo
-	 */
 
 	if(!is_esi_waiting(cycle_element->esi_id)) return 0;
 

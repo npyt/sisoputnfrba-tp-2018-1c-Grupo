@@ -17,7 +17,7 @@ void * esi_thread(int incoming_socket);
 InstanceRegistration * get_instance_for_process(InstructionDetail * instruction);
 InstanceRegistration * search_instance_by_name(char name[INSTANCE_NAME_MAX]);
 void instance_limit_calculation();
-int find_first_Lowercase (char *key);
+int find_first_lowercase (char *key);
 int get_instance_index_by_alg(char* key, int simulation_mode);
 char * get_instance_name_by_alg(char* key, int simulation_mode);
 ResourceRegistration * search_resource(char key[KEY_NAME_MAX]);
@@ -393,7 +393,7 @@ InstanceRegistration * get_instance_for_process(InstructionDetail * instruction)
 	return NULL;
 }
 
-int find_first_Lowercase (char *key){
+int find_first_lowercase (char *key){
     for (int i=0;i<(string_length(key)-1);i++){
         	int value = key[i];
         	if ((value >= 'a' ) && (value <= 'z')){
@@ -428,16 +428,35 @@ bool max_free_entries_instance(InstanceRegistration *instance_1, InstanceRegistr
 	return (instance_1->free_entries > instance_2->free_entries);
 }
 
+bool is_up(InstanceRegistration *instance){
+	return (instance->isup == 1);
+}
+
+int get_index_by_name(char name[INSTANCE_NAME_MAX]){
+	int index;
+	for(int a=0 ; a<instances->elements_count ; a++) {
+			InstanceRegistration * re = list_get(instances, a);
+			if(strcmp(re->name, name) == 0) {
+				index = list_get(instances , a);
+				return index;
+			}
+		}
+		return NULL;
+}
+
+
 int get_instance_index_by_alg(char *key, int simulation_mode) { //TODO algs
 	int chosen_index = 0;
 	int value = find_first_Lowercase (key);
 	int inst_number = list_size(instances);
+	t_list* instances_to_distribute = list_filter(instances, (void *)is_up);
 	InstanceRegistration* inst;
 
 	switch(settings.dist_alg) { // Switch between distribution algorithm
 		case LSU:
-			list_sort(instances, (void *)max_free_entries_instance);
-			chosen_index = 0;
+			list_sort(instances_to_distribute, (void *)max_free_entries_instance);
+			inst = list_get(instances_to_distribute, 0);
+			chosen_index = get_index_by_name(inst->name);
 			break;
 		case EL:
 			if(simulation_mode == 0){

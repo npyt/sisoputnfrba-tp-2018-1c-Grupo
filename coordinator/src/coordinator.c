@@ -155,7 +155,7 @@ void * listening_thread(int server_socket) {
 				case GET_KEY_STATUS:
 					; //Statement vacio (C no permite declaraciones despues de etiquetas)
 					char query_key[KEY_NAME_MAX];
-					strcpy(query_key, header->comment);
+					strcpy(query_key, i_header->comment);
 					print_and_log_trace(logger, "[CONSOLE_ASKS_FOR_%s_STATUS]", query_key);
 
 					StatusData * sd = malloc(sizeof(StatusData));
@@ -174,8 +174,8 @@ void * listening_thread(int server_socket) {
 							sd->storage_isup = 1;
 							strcpy(sd->simulated_storage, sd->actual_storage);
 
-							header->type = COORD_ASKS_FOR_KEY_VALUE; //Reutilizo header recibido por plani (la key esta en header->comment)
-							send_header(storage->socket, header);
+							i_header->type = COORD_ASKS_FOR_KEY_VALUE; //Reutilizo header recibido por plani (la key esta en header->comment)
+							send_header(storage->socket, i_header);
 
 							char * value = malloc(sizeof(char) * KEY_VALUE_MAX);
 							recieve_data(storage->socket, value, sizeof(char) * KEY_VALUE_MAX);

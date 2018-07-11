@@ -144,7 +144,7 @@ void * listening_thread(int coordinator_socket) {
 							; //Statement vacio (C no permite declaraciones despues de etiquetas)
 							ResourceStorage * rs = malloc(sizeof(ResourceStorage));
 
-							rs = get_key(header->comment, 0);
+							rs = get_key(i_header->comment, 0);
 
 							char stored_value[KEY_VALUE_MAX];
 

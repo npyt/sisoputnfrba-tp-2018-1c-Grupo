@@ -442,7 +442,7 @@ int get_index_by_name(char name[INSTANCE_NAME_MAX]){
 				return index;
 			}
 		}
-		return NULL;
+		return -1;
 }
 
 

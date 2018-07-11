@@ -201,6 +201,7 @@ void * listening_thread(int server_socket) {
 							re->waiting_counter=0;
 							re->job_counter=0;
 							re->response_ratio=0;
+							strcpy(re->name, header->comment);
 							list_add(ready_queue, re);
 
 							// Response
@@ -315,7 +316,8 @@ void * listening_thread(int server_socket) {
 						case ESI_FINISHED:
 							print_and_log_trace(logger, "[ESI_SAYS_ITS_DONE]");
 							recieve_data(incoming_socket, &esi_f_id, sizeof(int));
-							print_and_log_trace(logger, "[ESI_ID_%d]", esi_f_id);
+							print_and_log_trace(logger, "[ESI_ID_%d\t%s]", esi_f_id,
+									search_esi(esi_f_id)->name);
 							finish_esi(esi_f_id);
 							running_esi = NULL;
 							running_now = 0;

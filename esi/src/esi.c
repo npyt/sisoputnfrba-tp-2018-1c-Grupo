@@ -5,6 +5,7 @@ t_config * config;
 t_log * logger;
 
 ESIConfig settings;
+char * file_name;
 
 FILE * script_file;
 int bytes_to_last_instruction;
@@ -31,6 +32,8 @@ int main(int argc, char **argv) {
 	settings.coord_port = config_get_int_value(config, "COORD_PORT");
 	strcpy(settings.planner_ip, config_get_string_value(config, "PLANNER_IP"));
 	settings.planner_port = config_get_int_value(config, "PLANNER_PORT");
+	file_name = malloc(sizeof(char)*ESI_NAME_MAX);
+	strcpy(file_name, argv[1]);
 	config_destroy(config);
 
 	pthread_t listening_thread_id;
@@ -148,8 +151,10 @@ void * listening_thread() {
 					switch(i_header->type) {
 						case HSK_ESI_COORD_OK:
 							print_and_log_trace(logger, "[COORDINATOR_SAYS_HI]");
-
-							send_message_type(settings.planner_socket, HSK_ESI_PLANNER);
+							header->type = HSK_ESI_PLANNER;
+							strcpy(header->comment, file_name);
+							free(file_name);
+							send_header(settings.planner_socket, header);
 							print_and_log_trace(logger, "[SAYING_HI_TO_PLANNER]");
 							break;
 						case HSK_ESI_PLANNER_OK:

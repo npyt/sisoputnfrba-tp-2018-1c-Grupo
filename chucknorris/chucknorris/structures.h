@@ -122,8 +122,10 @@ typedef enum {
 	S_FINISHED
 } ESIStatus;
 
+#define ESI_NAME_MAX 64
 typedef struct {
 	int esi_id;
+	char name[ESI_NAME_MAX];
 	int socket;
 	int rerun_last_instruction;
 	int kill_on_next_run;

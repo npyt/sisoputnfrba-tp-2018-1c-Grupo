@@ -92,7 +92,7 @@ void status(char* key){
 
 	for(int i = 0; i < sd->waiting_esis->elements_count; i++){
 		some_waiting_esi_id = list_get(sd->waiting_esis, i);
-		printf("- ESI %d\n", some_waiting_esi_id);
+		printf("- s ", search_esi(some_waiting_esi_id)->name);
 	}
 
 	list_destroy(sd->waiting_esis);
@@ -108,7 +108,7 @@ void deadlock(){
 
 	for(int i = 0; i < waiting_allocations->elements_count; i++){
 		ra = list_get(waiting_allocations, i);
-		if(deadlock_check(ra)) printf("- ESI nro %d", ra->esi_id);
+		if(deadlock_check(ra)) printf("- %s ", search_esi(ra->esi_id)->name);
 	}
 
 	list_destroy(waiting_allocations);

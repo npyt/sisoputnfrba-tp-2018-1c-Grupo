@@ -377,10 +377,12 @@ InstanceRegistration * search_instance_by_name(char name[INSTANCE_NAME_MAX]) {
 
 InstanceRegistration * get_instance_for_process(InstructionDetail * instruction) {
 	if(instruction->type == GET_OP) {
-		ResourceRegistration * re = malloc(sizeof(ResourceRegistration));
-		re->instance = NULL;
-		strcpy(re->key, instruction->key);
-		list_add(resources, re);
+		if(!search_resource(instruction->key)){
+			ResourceRegistration * re = malloc(sizeof(ResourceRegistration));
+			re->instance = NULL;
+			strcpy(re->key, instruction->key);
+			list_add(resources, re);
+		}
 		return NULL;
 	} else {
 		ResourceRegistration * re = search_resource(instruction->key);
@@ -446,7 +448,7 @@ int get_index_by_name(char name[INSTANCE_NAME_MAX]){
 
 int get_instance_index_by_alg(char *key, int simulation_mode) { //TODO algs
 	int chosen_index = 0;
-	int value = find_first_Lowercase (key);
+	int value = find_first_lowercase (key);
 	int inst_number = list_size(instances);
 	t_list* instances_to_distribute = list_filter(instances, (void *)is_up);
 	InstanceRegistration* inst;

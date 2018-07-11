@@ -231,7 +231,7 @@ void execute(int command_number, char* param1, char* param2){
 		else {printf("El comando 'status' recibe un parametro!\n");}
 		break;
 	case DEADLOCK:
-		if(!param1 && !param2) resume();
+		if(!param1 && !param2) deadlock();
 		else {printf("El comando 'deadlock' no recibe parametros!\n");}
 		break;
 	case INFO:

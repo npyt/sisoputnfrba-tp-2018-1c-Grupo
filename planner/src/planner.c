@@ -299,7 +299,6 @@ void * listening_thread(int server_socket) {
 							print_and_log_trace(logger, "[CURRENT_INSTRUCTION_SUCCESSFULLY_EXECUTED]");
 
 							running_esi->rerun_last_instruction = 0;
-							running_now = 0;
 
 							// Subtract estimation
 							if(running_esi->estimation)
@@ -311,6 +310,7 @@ void * listening_thread(int server_socket) {
 							// Prepare ratio for HRRN
 							if(settings.planning_alg == HRRN)
 								ready_queue = map_list_for_hrrn();
+							running_now = 0;
 							break;
 						case ESI_FINISHED:
 							print_and_log_trace(logger, "[ESI_SAYS_ITS_DONE]");
@@ -319,6 +319,8 @@ void * listening_thread(int server_socket) {
 							finish_esi(esi_f_id);
 							running_esi = NULL;
 							running_now = 0;
+							print_and_log_debug(logger, "aa aa aa isr=%d", running_now);
+
 							break;
 						case ESI_FINISHED_BY_ERROR:
 							recieve_data(incoming_socket, &esi_f_id, sizeof(int));
@@ -327,7 +329,6 @@ void * listening_thread(int server_socket) {
 							running_esi = NULL;
 							running_now = 0;
 							break;
-
 					}
 
 					free(header);
@@ -348,6 +349,7 @@ void * running_thread(int a) {
 		if (get_running_flag()) {
 			if(running_esi != NULL && !running_now) {
 				// Run ESI in running
+				running_now = 1;
 				print_and_log_trace(logger, "[ESI_WILL_EXECUTE][%d]", running_esi->esi_id);
 				running_esi->job_counter++;
 				if(running_esi->rerun_last_instruction) {
@@ -355,8 +357,8 @@ void * running_thread(int a) {
 				} else {
 					send_message_type(running_esi->socket, EXECUTE_NEXT_INSTRUCTION);
 				}
-				running_now = 1;
 			}
+			sleep(1);
 		}
 	}
 }
@@ -384,7 +386,7 @@ int array_size(char* array[]){
 }
 
 int is_key_free(char key[KEY_NAME_MAX]) {
-	return get_owner_esi(key) == -1;
+	return get_owner_esi(key) == -2;
 }
 
 int is_key_allocated_by(char key[KEY_NAME_MAX], int esi_id) {
@@ -515,7 +517,7 @@ int get_owner_esi(char key[KEY_NAME_MAX]){
 			return ra->esi_id;
 		}
 	}
-	return -1;
+	return -2;
 }
 
 /*

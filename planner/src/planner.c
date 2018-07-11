@@ -384,7 +384,7 @@ int array_size(char* array[]){
 }
 
 int is_key_free(char key[KEY_NAME_MAX]) {
-	return get_owner_esi(key) == NULL;
+	return get_owner_esi(key) == -1;
 }
 
 int is_key_allocated_by(char key[KEY_NAME_MAX], int esi_id) {
@@ -515,7 +515,7 @@ int get_owner_esi(char key[KEY_NAME_MAX]){
 			return ra->esi_id;
 		}
 	}
-	return NULL;
+	return -1;
 }
 
 /*

@@ -120,8 +120,8 @@ void * listening_thread(int server_socket) {
 						header->type = HSK_INST_COORD_OK;
 						send_header_and_data(ir->socket, header, data, sizeof(InstanceData));
 
-						//pthread_t instance_thread_id;
-						//pthread_create(&instance_thread_id, NULL, instance_thread, ir);
+						pthread_t instance_thread_id;
+						pthread_create(&instance_thread_id, NULL, instance_thread, ir);
 					} else {
 						// Instance already exists
 						free(ir);
@@ -202,7 +202,7 @@ void * instance_thread(InstanceRegistration * ir) {
 
 	free(header);
 
-	int max_sd, activity_socket;
+	/*int max_sd, activity_socket;
 	fd_set master_set;
 
 	while(1) {
@@ -229,7 +229,7 @@ void * instance_thread(InstanceRegistration * ir) {
 			}
 			free(i_header);
 		}
-	}
+	}*/
 }
 
 void * esi_thread(int incoming_socket) {

@@ -201,7 +201,7 @@ void * listening_thread(int server_socket) {
 							re->waiting_counter=0;
 							re->job_counter=0;
 							re->response_ratio=0;
-							strcpy(re->name, header->comment);
+							strcpy(re->name, i_header->comment);
 							list_add(ready_queue, re);
 
 							// Response

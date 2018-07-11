@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
 		//exit_with_message("No especificó el script ESI.", EXIT_FAILURE);
 		argv[1] = malloc(sizeof(char) * 1024);
-		strcpy(argv[1], "esis/ESI_MenuParrilla");
+		strcpy(argv[1], "esis/ESI_Simple");
 	}
 
 	config = config_create("config.cfg");
@@ -34,6 +34,7 @@ int main(int argc, char **argv) {
 	settings.planner_port = config_get_int_value(config, "PLANNER_PORT");
 	file_name = malloc(sizeof(char)*ESI_NAME_MAX);
 	strcpy(file_name, argv[1]);
+	print_and_log_trace(logger, "[%s]", file_name);
 	config_destroy(config);
 
 	pthread_t listening_thread_id;

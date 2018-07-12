@@ -111,16 +111,18 @@ void * listening_thread(int server_socket) {
 					data->entry_count = settings.entry_count;
 					data->entry_size = settings.entry_size;
 
+					// Response OK
+					header->type = HSK_INST_COORD_OK;
+					send_header_and_data(ir->socket, header, data, sizeof(InstanceData));
+
+					free(data);
+
 					InstanceRegistration * prev_inst = search_instance_by_name(ir->name);
 					if(prev_inst == NULL) {
 						// Registrate NEW Instance
 						print_and_log_trace(logger, "[SAYS_NAME_IS][%s]", ir->name);
 						ir->free_entries = settings.entry_count;
 						list_add(instances, ir);
-
-						// Response OK
-						header->type = HSK_INST_COORD_OK;
-						send_header_and_data(ir->socket, header, data, sizeof(InstanceData));
 
 						pthread_t instance_thread_id;
 						pthread_create(&instance_thread_id, NULL, instance_thread, ir);
@@ -130,8 +132,15 @@ void * listening_thread(int server_socket) {
 						prev_inst->socket = ir->socket;
 						free(ir);
 
+						// Registrate Instance entries info
+						InstanceData * data = malloc(sizeof(InstanceData));
+						data->entry_count = settings.entry_count;
+						data->entry_size = settings.entry_size;
+
 						header->type = HSK_INST_COORD_RELOAD;
 						send_header_and_data(prev_inst->socket, header, data, sizeof(InstanceData));
+
+						free(data);
 
 						t_list * re_resources = instance_resources(prev_inst);
 						print_and_log_info(logger, "Must Relocate %d resources", re_resources->elements_count);
@@ -259,9 +268,9 @@ void * planner_thread() {
 void * instance_thread(InstanceRegistration * ir) {
 	MessageHeader * header = malloc(sizeof(MessageHeader));
 
-	instance_limit_calculation();
 	pthread_mutex_init(&ir->mutex, NULL);
 	ir->isup = 1;
+	instance_limit_calculation();
 
 	free(header);
 
@@ -485,10 +494,15 @@ int find_first_lowercase (char *key){
     return -1; //error?
 }
 
+bool is_up(InstanceRegistration *instance){
+	return (instance->isup == 1);
+}
+
 void instance_limit_calculation(){
 	int letters = 26;
 	t_list * instances_to_distribute = list_filter(instances, (void *)is_up);
 	int inst_number = list_size(instances_to_distribute);
+	if(inst_number == 0) return;
 	int letters_per_instance = letters / inst_number;
 	int first_letter = 'a';
 	InstanceRegistration* inst;
@@ -512,20 +526,14 @@ bool max_free_entries_instance(InstanceRegistration *instance_1, InstanceRegistr
 	return (instance_1->free_entries > instance_2->free_entries);
 }
 
-bool is_up(InstanceRegistration *instance){
-	return (instance->isup == 1);
-}
-
 int get_index_by_name(char name[INSTANCE_NAME_MAX]){
-	int index;
 	for(int a=0 ; a<instances->elements_count ; a++) {
-			InstanceRegistration * re = list_get(instances, a);
-			if(strcmp(re->name, name) == 0) {
-				index = list_get(instances , a);
-				return index;
-			}
+		InstanceRegistration * re = list_get(instances, a);
+		if(strcmp(re->name, name) == 0) {
+			return a;
 		}
-		return -1;
+	}
+	return -1;
 }
 
 
@@ -550,16 +558,22 @@ int get_instance_index_by_alg(char *key, int simulation_mode) { //TODO algs
 		case EL:
 			;
 			int original_last = last_used_instance;
+
 			last_used_instance++;
-			inst = list_get(instances, last_used_instance);
-			while(!inst->isup) {
-				last_used_instance++;
-				inst = list_get(instances, last_used_instance);
-			}
 			if(last_used_instance == instances->elements_count) {
 				last_used_instance = 0;
 			}
+
+			inst = list_get(instances, last_used_instance);
+			while(!inst->isup) {
+				last_used_instance++;
+				if(last_used_instance == instances->elements_count) {
+					last_used_instance = 0;
+				}
+				inst = list_get(instances, last_used_instance);
+			}
 			chosen_index = get_index_by_name(inst->name);
+
 			if(simulation_mode == 1){
 				last_used_instance = original_last;
 			}

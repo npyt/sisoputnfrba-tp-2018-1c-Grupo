@@ -13,9 +13,12 @@ int last_used_cell;
 int local_operation_counter;
 
 void * listening_thread(int server_socket);
+void * dump_thread();
 char * get_file_path(char key[KEY_NAME_MAX]);
 
 ResourceStorage * get_key(char key[KEY_NAME_MAX], int force_creation);
+
+pthread_mutex_t allow_listening;
 
 int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
@@ -44,6 +47,8 @@ int main(int argc, char **argv) {
 	free(buffer);
 	config_destroy(config);
 
+	pthread_mutex_init(&allow_listening, NULL);
+
 	storage_cells = NULL;
 	resources = NULL;
 
@@ -53,10 +58,28 @@ int main(int argc, char **argv) {
 
 	pthread_t listening_thread_id;
 	pthread_create(&listening_thread_id, NULL, listening_thread, coordinator_socket);
+	pthread_t dump_thread_id;
+	pthread_create(&dump_thread_id, NULL, dump_thread, NULL);
 
 	pthread_exit(NULL);
 
 	return EXIT_SUCCESS;
+}
+
+void * dump_thread() {
+	while(1) {
+		sleep(settings.dump);
+		pthread_mutex_lock(&allow_listening);
+		print_and_log_trace(logger, "[DUMP_STARTED]");
+		if(resources != NULL) {
+			for(int a=0 ; a<resources->elements_count ; a++) {
+				dump_storage(list_get(resources, a));
+			}
+		}
+		sleep(5);
+		print_and_log_trace(logger, "[DUMP_FINISHED]");
+		pthread_mutex_unlock(&allow_listening);
+	}
 }
 
 void * listening_thread(int coordinator_socket) {
@@ -84,6 +107,7 @@ void * listening_thread(int coordinator_socket) {
 		}
 
 		activity_socket = select(max_sd + 1, &master_set, NULL, NULL, NULL);
+		pthread_mutex_lock(&allow_listening);
 
 		for(a=0 ; a<MAX_SERVER_CLIENTS ; a++) {
 			if(FD_ISSET(clients[a], &master_set)) {
@@ -210,6 +234,7 @@ void * listening_thread(int coordinator_socket) {
 				free(i_header);
 			}
 		}
+		pthread_mutex_unlock(&allow_listening);
 	}
 }
 

@@ -13,6 +13,7 @@ int last_used_cell;
 int local_operation_counter;
 
 void * listening_thread(int server_socket);
+char * get_file_path(char key[KEY_NAME_MAX]);
 
 ResourceStorage * get_key(char key[KEY_NAME_MAX], int force_creation);
 
@@ -20,7 +21,7 @@ int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
 		//exit_with_message("No especificó el archivo de configuración.", EXIT_FAILURE);
 		argv[1] = malloc(sizeof(char) * 1024);
-		strcpy(argv[1], "config3.cfg");
+		strcpy(argv[1], "config.cfg");
 	}
 
 	config = config_create(argv[1]);
@@ -117,6 +118,42 @@ void * listening_thread(int coordinator_socket) {
 
 							print_and_log_trace(logger, "[COORDINATOR_GIVES_CONFIG][%d_ENTRIES][%d_SIZE]", entry_settings.entry_count, entry_settings.entry_size);
 							prepare_storage();
+
+							int key_count;
+							recieve_data(incoming_socket, &key_count, sizeof(int));
+
+							char * buffer;
+							char * value;
+							InstructionDetail * t_instruction;
+
+							for(int a=0 ; a<key_count ; a++) {
+								buffer = malloc(sizeof(char) * KEY_NAME_MAX);
+								recieve_data(incoming_socket, buffer, sizeof(char) * KEY_NAME_MAX);
+								print_and_log_info(logger, " load %s", buffer);
+
+								value = malloc(sizeof(char) * KEY_VALUE_MAX);
+								print_and_log_info(logger, get_file_path(buffer));
+								FILE * f = fopen(get_file_path(buffer), "r");
+
+								if(!f) {
+									strcpy(value, "no_value");
+								} else {
+									value[fread(value, sizeof(char), KEY_VALUE_MAX, f)] = '\0';
+									fclose(f);
+								}
+
+								print_and_log_info(logger, " value %s", value);
+
+								t_instruction = malloc(sizeof(InstructionDetail));
+								t_instruction->esi_id = -1;
+								strcpy(t_instruction->key, buffer);
+								strcpy(t_instruction->opt_value, value);
+
+								t_instruction->type = SET_OP;
+								process_instruction(t_instruction);
+
+								free(t_instruction);
+							}
 
 							load_previous_keys();
 							break;
@@ -487,11 +524,15 @@ int store_storage(ResourceStorage * rs) {
 	return dump_storage(rs);
 }
 
-int dump_storage(ResourceStorage * rs) {
+char * get_file_path(char key[KEY_NAME_MAX]) {
 	char * file_name = malloc(sizeof(char) * ( strlen(settings.mounting_point) + strlen(settings.name) + KEY_NAME_MAX + 3 ));
 	strcpy(file_name, settings.mounting_point);
-	strcat(file_name, rs->key);
+	strcat(file_name, key);
+	return file_name;
+}
 
+int dump_storage(ResourceStorage * rs) {
+	char * file_name = get_file_path(rs->key);
 
 	FILE * fd = fopen(file_name, "wb+");
 	if(rs->size != 0) {

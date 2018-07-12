@@ -15,6 +15,7 @@ void * listening_thread(int server_socket);
 void * instance_thread(InstanceRegistration * ir);
 void * planner_thread();
 void * esi_thread(int incoming_socket);
+t_list * instance_resources(InstanceRegistration * instance);
 InstanceRegistration * get_instance_for_process(InstructionDetail * instruction);
 InstanceRegistration * search_instance_by_name(char name[INSTANCE_NAME_MAX]);
 void instance_limit_calculation();
@@ -125,12 +126,21 @@ void * listening_thread(int server_socket) {
 						pthread_create(&instance_thread_id, NULL, instance_thread, ir);
 					} else {
 						// Instance already exists
-						free(ir);
 						print_and_log_trace(logger, "[WAS_AN_EXISTING_CONNECTION][%s][REPORTING_IT_MUST_RELOAD_KEYS]", prev_inst->name);
 						prev_inst->socket = ir->socket;
+						free(ir);
 
 						header->type = HSK_INST_COORD_RELOAD;
-						send_header_and_data(ir->socket, header, data, sizeof(InstanceData));
+						send_header_and_data(prev_inst->socket, header, data, sizeof(InstanceData));
+
+						t_list * re_resources = instance_resources(prev_inst);
+						print_and_log_info(logger, "Must Relocate %d resources", re_resources->elements_count);
+						send_data(prev_inst->socket, &re_resources->elements_count, sizeof(int));
+
+						for(int a=0 ; a<re_resources->elements_count ; a++) {
+							ResourceRegistration * rr = list_get(re_resources, a);
+							send_data(prev_inst->socket, rr->key, sizeof(char) * KEY_NAME_MAX);
+						}
 
 						pthread_mutex_unlock(&ir->mutex);
 						prev_inst->isup = 1;
@@ -278,8 +288,6 @@ void * instance_thread(InstanceRegistration * ir) {
 				switch(i_header->type) {
 					case INSTRUCTION_OK_TO_COORD:
 					case INSTRUCTION_FAILED_TO_COORD:
-						//print_and_log_info(logger, "recibio");
-						//ir->hasdata = 1;
 						break;
 				}
 				free(header);
@@ -340,9 +348,7 @@ void * esi_thread(int incoming_socket) {
 
 								//Waiting for response
 								pthread_mutex_lock(&instance->mutex);
-print_and_log_trace(logger, "Mutex liberado");
-								//while(!instance->hasdata){}
-//print_and_log_trace(logger, "ahora hay data");
+								print_and_log_trace(logger, "Mutex liberado");
 								recieve_header(instance->socket, response_header);
 								instance->hasdata = 0;
 
@@ -425,6 +431,18 @@ ResourceRegistration * search_resource(char key[KEY_NAME_MAX]) {
 		}
 	}
 	return NULL;
+}
+
+t_list * instance_resources(InstanceRegistration * instance) {
+	t_list * ret_resources = list_create();
+	int a;
+	for(a=0 ; a<resources->elements_count ; a++) {
+		ResourceRegistration * re = list_get(resources, a);
+		if(strcmp(re->instance->name, instance->name) == 0) {
+			list_add(ret_resources, re);
+		}
+	}
+	return ret_resources;
 }
 
 InstanceRegistration * search_instance_by_name(char name[INSTANCE_NAME_MAX]) {
@@ -516,6 +534,11 @@ int get_instance_index_by_alg(char *key, int simulation_mode) { //TODO algs
 	t_list* instances_to_distribute = list_filter(instances, (void *)is_up);
 	InstanceRegistration* inst;
 
+	if (instances_to_distribute->elements_count == 0) {
+		print_and_log_info(logger, "NO AVAILABLE INSTANCES");
+		return -1;
+	}
+
 	switch(settings.dist_alg) { // Switch between distribution algorithm
 		case LSU:
 			list_sort(instances_to_distribute, (void *)max_free_entries_instance);
@@ -526,19 +549,24 @@ int get_instance_index_by_alg(char *key, int simulation_mode) { //TODO algs
 			;
 			int original_last = last_used_instance;
 			last_used_instance++;
+			inst = list_get(instances, last_used_instance);
+			while(!inst->isup) {
+				last_used_instance++;
+				inst = list_get(instances, last_used_instance);
+			}
 			if(last_used_instance == instances->elements_count) {
 				last_used_instance = 0;
 			}
-			chosen_index = last_used_instance;
+			chosen_index = get_index_by_name(inst->name);
 			if(simulation_mode == 1){
 				last_used_instance = original_last;
 			}
 			break;
 		case KE:
-			for(int index =0;index < inst_number;index++){
+			for(int index=0 ; index < inst_number ; index++){
 			inst= list_get(instances,index);
-				if((value >= inst->inf) && (value <= inst->sup)){
-					chosen_index = index;
+				if((value >= inst->inf) && (value <= inst->sup)) {
+					chosen_index = get_index_by_name(inst->name);
 				}
 			}
 			break;

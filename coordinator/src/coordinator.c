@@ -487,19 +487,21 @@ int find_first_lowercase (char *key){
 
 void instance_limit_calculation(){
 	int letters = 26;
-	int inst_number = list_size(instances);
+	t_list * instances_to_distribute = list_filter(instances, (void *)is_up);
+	int inst_number = list_size(instances_to_distribute);
 	int letters_per_instance = letters / inst_number;
 	int first_letter = 'a';
 	InstanceRegistration* inst;
-	for(int i =0;i < inst_number;i++){
-	//if (isup){ ----(later)
+	for(int i=0 ; i<instances->elements_count ; i++){
 		inst= list_get(instances,i);
-		inst->inf = first_letter;
-		first_letter += letters_per_instance;
-		inst->sup=first_letter;//first_letter ahora toma el valor de la ultima.
-	/*}else{
-	 * inst->inf=-1
-	 * inst->sup=-1}*/
+		if (inst->isup){
+			inst->inf = first_letter;
+			first_letter += letters_per_instance;
+			inst->sup=first_letter;//first_letter ahora toma el valor de la ultima.
+		}else{
+			inst->inf=-1;
+			inst->sup=-1;
+		}
 	}
 	if(first_letter < 'z'){
 		InstanceRegistration* last_inst = list_get(instances,list_size(instances)-1);
@@ -531,7 +533,7 @@ int get_instance_index_by_alg(char *key, int simulation_mode) { //TODO algs
 	int chosen_index = 0;
 	int value = find_first_lowercase (key);
 	int inst_number = list_size(instances);
-	t_list* instances_to_distribute = list_filter(instances, (void *)is_up);
+	t_list * instances_to_distribute = list_filter(instances, (void *)is_up);
 	InstanceRegistration* inst;
 
 	if (instances_to_distribute->elements_count == 0) {

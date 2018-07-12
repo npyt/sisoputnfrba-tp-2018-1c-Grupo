@@ -171,6 +171,7 @@ typedef struct {
 	int sup;
 	int free_entries;
 	pthread_mutex_t mutex;
+	int hasdata;
 	int isup;
 } InstanceRegistration;
 

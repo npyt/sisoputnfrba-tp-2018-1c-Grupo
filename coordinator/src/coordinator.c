@@ -277,7 +277,10 @@ void * instance_thread(InstanceRegistration * ir) {
 				pthread_mutex_unlock(&ir->mutex);
 				header = malloc(sizeof(MessageHeader));
 				switch(i_header->type) {
-
+					case INSTRUCTION_OK_TO_COORD:
+					case INSTRUCTION_FAILED_TO_COORD:
+						ir->hasdata = 1;
+						break;
 				}
 				free(header);
 			}
@@ -330,12 +333,15 @@ void * esi_thread(int incoming_socket) {
 							InstanceRegistration * instance = get_instance_for_process(instruction);
 							if (instance != NULL && instruction->type != GET_OP) { //Available instance and SET or STORE
 								header->type = INSTRUCTION_COORD_INST;
+								instance->hasdata = 0;
 								send_header_and_data(instance->socket, header, instruction, sizeof(InstructionDetail));
 								print_and_log_trace(logger, "[INSTRUCTION_SENT_TO_INSTANCE][%s]", instance->name);
 
 								//Waiting for response
 								pthread_mutex_lock(&instance->mutex);
+								while(!instance->hasdata){}
 								recieve_header(instance->socket, response_header);
+								instance->hasdata = 0;
 
 								switch(response_header->type) {
 									case INSTRUCTION_OK_TO_COORD:

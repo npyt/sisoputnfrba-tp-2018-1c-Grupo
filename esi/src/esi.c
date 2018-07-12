@@ -8,7 +8,6 @@ ESIConfig settings;
 char * file_name;
 
 FILE * script_file;
-int bytes_to_last_instruction;
 int finished = 0;
 
 InstructionDetail instruction;
@@ -19,14 +18,13 @@ int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
 		//exit_with_message("No especificó el script ESI.", EXIT_FAILURE);
 		argv[1] = malloc(sizeof(char) * 1024);
-		strcpy(argv[1], "esis/ESI_MenuParrilla");
+		strcpy(argv[1], "esis/ESI_MultiClave");
 	}
 
 	config = config_create("config.cfg");
 	logger = log_create("log.log", "ESI", false, LOG_LEVEL_TRACE);
 
 	script_file = fopen(argv[1], "r");
-	bytes_to_last_instruction = 0;
 
 	strcpy(settings.coord_ip, config_get_string_value(config, "COORD_IP"));
 	settings.coord_port = config_get_int_value(config, "COORD_PORT");
@@ -51,12 +49,12 @@ void parse_next_instruction() {
 	ssize_t read;
 	t_esi_operacion parsi_instruction;
 
-	bytes_to_last_instruction = ftell(script_file);
 	if(getline(&line, &len, script_file) != -1) {
 		parsi_instruction = parse(line);
 
 		instruction.esi_id = settings.id;
 		if(!parsi_instruction.valido){
+			fclose(script_file);
 			send_message_type(settings.planner_socket, ESI_FINISHED_BY_ERROR);
 			send_data(settings.planner_socket, &settings.id, sizeof(int));
 			finished = 1;

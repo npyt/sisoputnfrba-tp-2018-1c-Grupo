@@ -10,11 +10,11 @@ t_list * blocked_queue;
 ESIRegistration * running_esi;
 PlannerConfig settings;
 
+pthread_mutex_t mutex_coordinator;
+
 //Flags
 int ESI_name_counter;
 int running_now;
-
-int mutex;
 
 void * listening_thread(int server_socket);
 void * running_thread(int a);
@@ -56,6 +56,8 @@ int main(int argc, char **argv) {
 		settings.planning_alg = FIFO;
 	}
 	free(buffer);
+
+	pthread_mutex_init(&mutex_coordinator, NULL);
 
 	// First flag and queues inits
 	ESI_name_counter = 0;
@@ -165,9 +167,8 @@ void * listening_thread(int server_socket) {
 				//From another client
 				//Recieve Header
 				MessageHeader * i_header = malloc(sizeof(MessageHeader));
-				if (recieve_header(incoming_socket, i_header) <= 0 ) {
+				if (recv(incoming_socket, i_header, sizeof(MessageHeader), MSG_PEEK) <= 0 ) {
 					//Disconnected
-
 
 					clients[a] = 0;
 					print_and_log_trace(logger, "[SOCKET_DISCONNECTED]");
@@ -176,18 +177,18 @@ void * listening_thread(int server_socket) {
 
 					MessageHeader * header = malloc(sizeof(MessageHeader));
 
-					while(mutex == 1){}
-					mutex = 1;
-
 					switch(i_header->type) {
 						case TEST:
+							recv(incoming_socket, i_header, sizeof(MessageHeader), 0);
 							//printf("Test Recieved\n");
 							fflush(stdout);
 							break;
 						case HSK_PLANNER_COORD_OK:
+							recv(incoming_socket, i_header, sizeof(MessageHeader), 0);
 							print_and_log_trace(logger, "[COORDINATOR_SAYS_HI]");
 							break;
 						case HSK_ESI_PLANNER:
+							recv(incoming_socket, i_header, sizeof(MessageHeader), 0);
 							print_and_log_trace(logger, "[NEW_ESI_CONNECTION]");
 
 							// Registrate ESI
@@ -214,6 +215,7 @@ void * listening_thread(int server_socket) {
 							print_and_log_trace(logger, "[ASSIGNED_ESTIMATION_%f]", re->estimation);
 							break;
 						case INSTRUCTION_PERMISSION:
+							recv(incoming_socket, i_header, sizeof(MessageHeader), 0);
 							if(running_esi->kill_on_next_run == 1){
 								running_esi = NULL;
 								running_now = 0;
@@ -288,6 +290,7 @@ void * listening_thread(int server_socket) {
 							}
 							break;
 						case NEW_RESOURCE_ALLOCATION:
+							recv(incoming_socket, i_header, sizeof(MessageHeader), 0);
 							print_and_log_trace(logger, "[INCOMING_RESOURCE_ALLOCATION]");
 
 							ResourceAllocation * ra = malloc(sizeof(ResourceAllocation));
@@ -297,6 +300,7 @@ void * listening_thread(int server_socket) {
 							free(ra);
 							break;
 						case INSTRUCTION_OK_TO_PLANNER:
+							recv(incoming_socket, i_header, sizeof(MessageHeader), 0);
 							print_and_log_trace(logger, "[CURRENT_INSTRUCTION_SUCCESSFULLY_EXECUTED]");
 
 							running_esi->rerun_last_instruction = 0;
@@ -314,6 +318,7 @@ void * listening_thread(int server_socket) {
 							running_now = 0;
 							break;
 						case ESI_FINISHED:
+							recv(incoming_socket, i_header, sizeof(MessageHeader), 0);
 							print_and_log_trace(logger, "[ESI_SAYS_ITS_DONE]");
 							recieve_data(incoming_socket, &esi_f_id, sizeof(int));
 							print_and_log_trace(logger, "[ESI_ID_%d\t%s]", esi_f_id,
@@ -325,11 +330,17 @@ void * listening_thread(int server_socket) {
 
 							break;
 						case ESI_FINISHED_BY_ERROR:
+							recv(incoming_socket, i_header, sizeof(MessageHeader), 0);
 							recieve_data(incoming_socket, &esi_f_id, sizeof(int));
 							print_and_log_trace(logger, "[ESI_FAILURE]");
 							finish_esi(esi_f_id);
 							running_esi = NULL;
 							running_now = 0;
+							break;
+						default:
+							if(incoming_socket == settings.coord_socket) {
+								pthread_mutex_unlock(&mutex_coordinator);
+							}
 							break;
 					}
 
@@ -337,7 +348,6 @@ void * listening_thread(int server_socket) {
 
 				}
 				free(i_header);
-				mutex = 0;
 			}
 		}
 	}
@@ -717,18 +727,16 @@ ResourceAllocation * find_allocation_node(int esi_id, int type){
 }
 
 StatusData * get_status(char * key){
-
+	print_and_log_error(logger, "HABILITADO");
 	StatusData * sd = malloc(sizeof(StatusData));
 
 	MessageHeader * header = malloc(sizeof(MessageHeader));
 	header->type = GET_KEY_STATUS;
 	strcpy(header->comment, key);
 
-	while(mutex == 1){}
-	mutex = 1;
 	send_header(settings.coord_socket, header);
+	pthread_mutex_lock(&mutex_coordinator);
 	recieve_data(settings.coord_socket, sd, sizeof(StatusData));
-	mutex = 0;
 
 	sd->waiting_esis = search_esis_waiting_for(key);
 	return sd;

@@ -155,6 +155,7 @@ typedef struct {
 	int entry_size;
 	int delay;
 	int planner_socket;
+	pthread_mutex_t mutex;
 } CoordinatorConfig;
 
 typedef struct {
@@ -169,7 +170,7 @@ typedef struct {
 	int inf;
 	int sup;
 	int free_entries;
-	int mutex_free;
+	pthread_mutex_t mutex;
 	int isup;
 } InstanceRegistration;
 
@@ -222,6 +223,7 @@ typedef struct {
 	char simulated_storage[INSTANCE_NAME_MAX];
 	int storage_exists;
 	int storage_isup;
+	int real_key;
 	t_list * waiting_esis;
 } StatusData;
 

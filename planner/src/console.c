@@ -75,25 +75,31 @@ void kill(char* esi_id_str){
 
 void status(char* key){
 	StatusData * sd = get_status(key);
-	int some_waiting_esi_id; //TODO esi name
+	int some_waiting_esi_id;
+	ResourceAllocation * ra;
 
-	if(sd->storage_isup && sd->storage_exists){
-		printf("Valor de %s: %s\n", key, sd->key_value);
-		printf("El valor de la clave se almacena en la instancia %s\n", sd->actual_storage);
-	} else {
-		if(sd->storage_exists){ //el sistema sabe que instancia le corresponde pero no se pudo obtener el valor
-			printf("La instancia que almacena el valor de %s está caida\n", key);
-			printf("El valor se guardaría en la instancia %s\n", sd->simulated_storage);
-		} else
+	if (sd->real_key == 1) {
+		if(sd->storage_exists){
+			printf("Valor de %s: %s\n", key, sd->key_value);
+			printf("El valor de la clave se almacena en la instancia %s\n", sd->actual_storage);
+			if(!sd->storage_isup) {
+				printf("La instancia se encuentra caída\n", sd->actual_storage);
+			}
+		} else {
 			printf("La clave no existe. Su valor se guardaría en la instancia %s\n", sd->simulated_storage);
+		}
+	} else {
+		printf("El recurso no se registra en el coordinador\n");
 	}
 
 	printf("%d ESIs esperando la key:\n", sd->waiting_esis->elements_count);
 
 	for(int i = 0; i < sd->waiting_esis->elements_count; i++){
-		some_waiting_esi_id = list_get(sd->waiting_esis, i);
-		printf("- s ", search_esi(some_waiting_esi_id)->name);
+		ra = list_get(sd->waiting_esis, i);
+		some_waiting_esi_id = ra->esi_id;
+		printf("(ID %d) %s ; ", some_waiting_esi_id, search_esi(some_waiting_esi_id)->name);
 	}
+	if (sd->waiting_esis->elements_count != 0) printf("\n");
 
 	list_destroy(sd->waiting_esis);
 	free(sd);

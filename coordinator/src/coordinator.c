@@ -13,6 +13,7 @@ int last_used_instance;
 
 void * listening_thread(int server_socket);
 void * instance_thread(InstanceRegistration * ir);
+void * planner_thread();
 void * esi_thread(int incoming_socket);
 InstanceRegistration * get_instance_for_process(InstructionDetail * instruction);
 InstanceRegistration * search_instance_by_name(char name[INSTANCE_NAME_MAX]);
@@ -131,7 +132,7 @@ void * listening_thread(int server_socket) {
 						header->type = HSK_INST_COORD_RELOAD;
 						send_header_and_data(ir->socket, header, data, sizeof(InstanceData));
 
-						prev_inst->mutex_free = 1;
+						pthread_mutex_unlock(&ir->mutex);
 						prev_inst->isup = 1;
 					}
 
@@ -141,8 +142,8 @@ void * listening_thread(int server_socket) {
 
 					settings.planner_socket = incoming_socket;
 
-					header->type = HSK_PLANNER_COORD_OK;
-					send_header(incoming_socket, header);
+					pthread_t planner_thread_id;
+					pthread_create(&planner_thread_id, NULL, planner_thread, NULL);
 					break;
 				case HSK_ESI_COORD:
 					print_and_log_trace(logger, "[NEW_ESI_CONNECTION]");
@@ -152,7 +153,39 @@ void * listening_thread(int server_socket) {
 					pthread_t esi_thread_id;
 					pthread_create(&esi_thread_id, NULL, esi_thread, incoming_socket);
 					break;
+			}
+			free(header);
+		}
+		free(i_header);
+	}
+}
+
+void * planner_thread() {
+	print_and_log_info(logger, "[SAYING_HI_TO_PLANNER]");
+	send_message_type(settings.planner_socket, HSK_PLANNER_COORD_OK);
+
+	int max_sd, activity_socket;
+	fd_set master_set;
+
+	while(1) {
+		FD_ZERO(&master_set);
+		FD_SET(settings.planner_socket, &master_set);
+		max_sd = settings.planner_socket;
+
+		activity_socket = select(max_sd + 1, &master_set, NULL, NULL, NULL);
+
+		//Recieve Header
+		MessageHeader * i_header = malloc(sizeof(MessageHeader));
+		if (recv(settings.planner_socket, i_header, sizeof(MessageHeader), MSG_PEEK) <= 0 ) {
+			//Disconnected
+			print_and_log_trace(logger, "[SOCKET_DISCONNECTED][PLANNER]");
+		} else {
+			//New message
+			MessageHeader * header = malloc(sizeof(MessageHeader));
+
+			switch(i_header->type){
 				case GET_KEY_STATUS:
+					recv(settings.planner_socket, i_header, sizeof(MessageHeader), 0);
 					; //Statement vacio (C no permite declaraciones despues de etiquetas)
 					char query_key[KEY_NAME_MAX];
 					strcpy(query_key, i_header->comment);
@@ -162,29 +195,49 @@ void * listening_thread(int server_socket) {
 					sd->storage_exists = 0;
 					sd->storage_isup = 0;
 
-					InstanceRegistration *storage = search_resource(query_key)->instance;
-					strcpy(sd->simulated_storage, get_instance_name_by_alg(query_key, 1));
+					ResourceRegistration * resource = search_resource(query_key);
+					if(resource == NULL) {
+						sd->real_key = 0;
+						print_and_log_error(logger, "RESOURCE NOT FOUND");
+					} else {
+						sd->real_key = 1;
+						InstanceRegistration * storage = resource->instance;
 
-					if(storage){ //si se le asigno algun valor a la key
-						strcpy(sd->actual_storage, storage->name);
-						sd->storage_exists = 1;
+						print_and_log_info(logger, "RESOURCE FOUND");
 
-						if(storage->isup){
-							//Si su instancia no esta caida
-							sd->storage_isup = 1;
-							strcpy(sd->simulated_storage, sd->actual_storage);
+						if(storage != NULL){ //si se le asigno algun valor a la key
+							strcpy(sd->actual_storage, storage->name);
+							sd->storage_exists = 1;
 
-							i_header->type = COORD_ASKS_FOR_KEY_VALUE; //Reutilizo header recibido por plani (la key esta en header->comment)
-							send_header(storage->socket, i_header);
+							if(storage->isup){
+								//Si su instancia no esta caida
+								sd->storage_isup = 1;
+								strcpy(sd->simulated_storage, sd->actual_storage);
 
-							char * value = malloc(sizeof(char) * KEY_VALUE_MAX);
-							recieve_data(storage->socket, value, sizeof(char) * KEY_VALUE_MAX);
-							strcpy(sd->key_value, value);
-							free(value);
+								i_header->type = COORD_ASKS_FOR_KEY_VALUE; //Reutilizo header recibido por plani (la key esta en header->comment)
+								send_header(storage->socket, i_header);
+
+								print_and_log_info(logger, "pedí valor");
+								pthread_mutex_lock(&storage->mutex);
+								print_and_log_info(logger, "listo para recibir");
+								recieve_data(storage->socket, sd->key_value, sizeof(char) * KEY_VALUE_MAX);
+								print_and_log_info(logger, "aló %s", sd->key_value);
+							} else {
+								strcpy(sd->key_value, "unable_to_get_value");
+							}
+						} else {
+							int instance_index = get_instance_index_by_alg(query_key, 1);
+							InstanceRegistration * ir = list_get(instances, instance_index);
+							strcpy(sd->simulated_storage, ir->name);
 						}
 					}
-					send_data(incoming_socket, sd, sizeof(sd));
+
+					send_data(settings.planner_socket, sd, sizeof(StatusData));
 					free(sd);
+
+					break;
+				default:
+					pthread_mutex_unlock(&settings.mutex);
 					break;
 			}
 			free(header);
@@ -197,12 +250,12 @@ void * instance_thread(InstanceRegistration * ir) {
 	MessageHeader * header = malloc(sizeof(MessageHeader));
 
 	instance_limit_calculation();
-	ir->mutex_free = 1;
+	pthread_mutex_init(&ir->mutex, NULL);
 	ir->isup = 1;
 
 	free(header);
 
-	/*int max_sd, activity_socket;
+	int max_sd, activity_socket;
 	fd_set master_set;
 
 	while(1) {
@@ -212,15 +265,16 @@ void * instance_thread(InstanceRegistration * ir) {
 
 		activity_socket = select(max_sd + 1, &master_set, NULL, NULL, NULL);
 
-		if(ir->mutex_free == 1 && ir->isup == 1) {
+		if(ir->isup == 1) {
 			MessageHeader * i_header = malloc(sizeof(MessageHeader));
-			if (recieve_header(ir->socket, i_header) <= 0 ) {
+			if (recv(ir->socket, i_header, sizeof(MessageHeader), MSG_PEEK) <= 0 ) {
 				//Disconnected
-				print_and_log_trace(logger, "[INSTANCE_SOCKET_DISCONNECTED]");
+				print_and_log_trace(logger, "[INSTANCE_SOCKET_DISCONNECTED][%s]", ir->name);
 				ir->isup = 0;
 				instance_limit_calculation();
 			} else {
-				//New message
+				//Allow op
+				pthread_mutex_unlock(&ir->mutex);
 				header = malloc(sizeof(MessageHeader));
 				switch(i_header->type) {
 
@@ -229,7 +283,7 @@ void * instance_thread(InstanceRegistration * ir) {
 			}
 			free(i_header);
 		}
-	}*/
+	}
 }
 
 void * esi_thread(int incoming_socket) {
@@ -266,6 +320,7 @@ void * esi_thread(int incoming_socket) {
 
 					//Waiting for response
 					MessageHeader * response_header = malloc(sizeof(MessageHeader));
+					pthread_mutex_lock(&settings.mutex);
 					recieve_header(settings.planner_socket, response_header);
 
 					switch (response_header->type) {
@@ -274,12 +329,12 @@ void * esi_thread(int incoming_socket) {
 
 							InstanceRegistration * instance = get_instance_for_process(instruction);
 							if (instance != NULL && instruction->type != GET_OP) { //Available instance and SET or STORE
-								instance->mutex_free = 0;
 								header->type = INSTRUCTION_COORD_INST;
 								send_header_and_data(instance->socket, header, instruction, sizeof(InstructionDetail));
 								print_and_log_trace(logger, "[INSTRUCTION_SENT_TO_INSTANCE][%s]", instance->name);
 
 								//Waiting for response
+								pthread_mutex_lock(&instance->mutex);
 								recieve_header(instance->socket, response_header);
 
 								switch(response_header->type) {
@@ -314,7 +369,6 @@ void * esi_thread(int incoming_socket) {
 										send_message_type(incoming_socket, INSTRUCTION_FAILED_TO_ESI);
 										break;
 								}
-								instance->mutex_free = 1;
 							} else if (instruction->type == GET_OP) { //GET OP, allocated instance but no need to send instruction
 								print_and_log_trace(logger, "[OPERATION_SUCCESSFUL][INFORMING_PLANNER]");
 								send_message_type(settings.planner_socket, INSTRUCTION_OK_TO_PLANNER);
@@ -460,19 +514,22 @@ int get_instance_index_by_alg(char *key, int simulation_mode) { //TODO algs
 			chosen_index = get_index_by_name(inst->name);
 			break;
 		case EL:
-			if(simulation_mode == 0){
-				last_used_instance++;
-				if(last_used_instance == instances->elements_count) {
-					last_used_instance = 0;
-				}
+			;
+			int original_last = last_used_instance;
+			last_used_instance++;
+			if(last_used_instance == instances->elements_count) {
+				last_used_instance = 0;
 			}
 			chosen_index = last_used_instance;
+			if(simulation_mode == 0){
+				last_used_instance = original_last;
+			}
 			break;
 		case KE:
 			for(int index =0;index < inst_number;index++){
 			inst= list_get(instances,index);
 				if((value >= inst->inf) && (value <= inst->sup)){
-					return index;
+					chosen_index = index;
 				}
 			}
 			break;
@@ -481,11 +538,4 @@ int get_instance_index_by_alg(char *key, int simulation_mode) { //TODO algs
 			print_and_log_error(logger, "[DISTRIBUTION ALGORITHM NOT VALID][PLEASE SET A VALID DISTRIBUTION ALGORITHM]");
 	}
 	return chosen_index;
-}
-
-char * get_instance_name_by_alg(char* key, int simulation_mode){
-	InstanceRegistration * inst =
-			list_get(instances, get_instance_index_by_alg(key, simulation_mode));
-
-	return inst->name;
 }

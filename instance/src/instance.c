@@ -145,17 +145,25 @@ void * listening_thread(int coordinator_socket) {
 							ResourceStorage * rs = malloc(sizeof(ResourceStorage));
 
 							rs = get_key(i_header->comment, 0);
+							int a = 0;
 
-							char stored_value[KEY_VALUE_MAX];
-
-							StorageCell * cell = list_get(storage_cells, rs->cell_id);
-							strcpy(stored_value, cell->content);
-							for(int q=1 ; q<rs->cell_count ; q++){
-								cell = list_get(storage_cells, rs->cell_id + q);
-								strcat(stored_value, cell->content);
+							char * stored_value = malloc(KEY_VALUE_MAX * sizeof(char));
+							for(int i=0 ; i<KEY_VALUE_MAX ; i++) {
+								stored_value[i] = '\0';
 							}
 
+							StorageCell * cell;
+							for(int q=0 ; q<rs->cell_count ; q++){
+								cell = list_get(storage_cells, rs->cell_id + q);
+								for(int i=0 ; i<strlen(cell->content) ; i++) {
+									stored_value[a++] = cell->content[i];
+								}
+							}
+
+							print_and_log_info(logger, "pidioeron valor %s", stored_value);
+
 							send_data(incoming_socket, stored_value, sizeof(char) * KEY_VALUE_MAX);
+							free(stored_value);
 							break;
 					}
 

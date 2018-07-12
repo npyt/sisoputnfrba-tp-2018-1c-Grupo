@@ -1,2 +1,7 @@
+GET test1
+SET test1 012
 GET test2
-SET test2 catorce
+SET test2 a
+GET test3
+SET test1 01
+SET test3 AZ

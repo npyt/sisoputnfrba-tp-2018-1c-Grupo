@@ -58,8 +58,8 @@ int main(int argc, char **argv) {
 
 	pthread_t listening_thread_id;
 	pthread_create(&listening_thread_id, NULL, listening_thread, coordinator_socket);
-	pthread_t dump_thread_id;
-	pthread_create(&dump_thread_id, NULL, dump_thread, NULL);
+	//pthread_t dump_thread_id;
+	//pthread_create(&dump_thread_id, NULL, dump_thread, NULL);
 
 	pthread_exit(NULL);
 
@@ -82,7 +82,21 @@ void * dump_thread() {
 	}
 }
 
+void map_cells() {
+	if(storage_cells != NULL){
+		for(int o=0 ; o<storage_cells->elements_count ; o++) {
+			StorageCell * sc = list_get(storage_cells, o);
+			if(sc->content_size > 0) {
+				print_and_log_info(logger, "\t%d\t%s", o, sc->content);
+			} else {
+				print_and_log_info(logger, "\t%d", o);
+			}
+		}
+	}
+}
+
 void * listening_thread(int coordinator_socket) {
+	settings.coordinator_socket = coordinator_socket;
 	int clients[MAX_SERVER_CLIENTS];
 	int a, max_sd, activity_socket, incoming_socket;
 	fd_set master_set;
@@ -153,10 +167,9 @@ void * listening_thread(int coordinator_socket) {
 							for(int a=0 ; a<key_count ; a++) {
 								buffer = malloc(sizeof(char) * KEY_NAME_MAX);
 								recieve_data(incoming_socket, buffer, sizeof(char) * KEY_NAME_MAX);
-								print_and_log_info(logger, " load %s", buffer);
+								print_and_log_trace(logger, "[LOAD_KEY_%s]", buffer);
 
 								value = malloc(sizeof(char) * KEY_VALUE_MAX);
-								print_and_log_info(logger, get_file_path(buffer));
 								FILE * f = fopen(get_file_path(buffer), "r");
 
 								if(!f) {
@@ -166,7 +179,7 @@ void * listening_thread(int coordinator_socket) {
 									fclose(f);
 								}
 
-								print_and_log_info(logger, " value %s", value);
+								print_and_log_trace(logger, "  [WITH_VALUE_%s]", value);
 
 								t_instruction = malloc(sizeof(InstructionDetail));
 								t_instruction->esi_id = -1;
@@ -179,7 +192,6 @@ void * listening_thread(int coordinator_socket) {
 								free(t_instruction);
 							}
 
-							load_previous_keys();
 							break;
 						case INSTRUCTION_COORD_INST:
 							print_and_log_trace(logger, "[INCOMING_INSTRUCTION_FROM_COORDINATOR]");
@@ -206,6 +218,7 @@ void * listening_thread(int coordinator_socket) {
 							ResourceStorage * rs = malloc(sizeof(ResourceStorage));
 
 							rs = get_key(i_header->comment, 0);
+							print_and_log_trace(logger, "[COORDINATOR_ASKING_FOR_%s_VALUE]", i_header->comment);
 							int a = 0;
 
 							char * stored_value = malloc(KEY_VALUE_MAX * sizeof(char));
@@ -221,10 +234,14 @@ void * listening_thread(int coordinator_socket) {
 								}
 							}
 
-							print_and_log_info(logger, "pidioeron valor %s", stored_value);
+							print_and_log_trace(logger, "[VALUE_%s]", stored_value);
 
 							send_data(incoming_socket, stored_value, sizeof(char) * KEY_VALUE_MAX);
 							free(stored_value);
+							break;
+						case COMPACT_ORDER:
+							print_and_log_trace(logger, "[COORDINATOR_ORDERS_ME_TO_COMPACT]");
+							compact(1);
 							break;
 					}
 
@@ -259,10 +276,6 @@ void prepare_storage() {
 	last_used_cell = -1;
 }
 
-void load_previous_keys() {
-	//TODO Load keys and values from the mounting point
-}
-
 int process_instruction(InstructionDetail * instruction) {
 	ResourceStorage * rs = malloc(sizeof(ResourceStorage));
 	switch(instruction->type) {
@@ -293,7 +306,13 @@ ResourceStorage * search_resource_by_cell_id(int id) {
 	return NULL;
 }
 
-int compact() {
+int compact(int from_coordinator) {
+	if(!from_coordinator) {
+		send_message_type(settings.coordinator_socket, IM_COMPACTING);
+	} else {
+		pthread_mutex_lock(&allow_listening);
+	}
+	print_and_log_trace(logger, "[COMPACT_START]");
 	int allocated_cells = entry_settings.entry_count - settings.free_entries;
 	int destination_cell = 0, parse_index = 0, new_start;
 
@@ -337,6 +356,12 @@ int compact() {
 				}
 			}
 		}
+	}
+	send_message_type(settings.coordinator_socket, DONE_COMPACTING);
+	print_and_log_trace(logger, "[COMPACT_END]");
+
+	if(from_coordinator) {
+		pthread_mutex_lock(&allow_listening);
 	}
 	return destination_cell;
 }
@@ -490,12 +515,15 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 					last_used_cell = a;
 				}
 			}
-			last_used_cell++;
-			if(last_used_cell == storage_cells->elements_count) { last_used_cell = 0; }
 
 			if(rs->cell_id == -1) {
-				last_used_cell = compact();
+				last_used_cell = compact(0);
 				rs->cell_id = last_used_cell;
+			}
+
+			last_used_cell = rs->cell_id + (cells_needed-1);
+			if(last_used_cell > entry_settings.entry_count) {
+				last_used_cell = 0;
 			}
 		}
 	} else {
@@ -532,15 +560,15 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 		cell->last_reference = local_operation_counter;
 		memcpy(cell->content, value+q*entry_settings.entry_size, entry_settings.entry_size);
 		cell->content_size = strlen(cell->content);
-
-		if(rs->cell_id + q > last_used_cell) {
-			last_used_cell = rs->cell_id + q;
-		}
 		print_and_log_trace(logger, "[ENTRY_%d][ATOMIC_%d][VALUE_%s]", cell->id, cell->atomic_value, cell->content);
 	}
 	if(cells_needed == 1) {
 		settings.atomic_entries++;
 	}
+
+
+	print_and_log_trace(logger, "MAPPING MEMORY ; LU %d", last_used_cell);
+	map_cells();
 	return 1;
 }
 

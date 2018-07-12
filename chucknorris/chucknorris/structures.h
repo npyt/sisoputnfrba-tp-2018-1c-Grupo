@@ -31,6 +31,10 @@ typedef enum {
 	INSTRUCTION_OK_TO_PLANNER,
 	INSTRUCTION_FAILED_TO_ESI,
 
+	IM_COMPACTING,
+	COMPACT_ORDER,
+	DONE_COMPACTING,
+
 	GET_KEY_STATUS,
 	COORD_ASKS_FOR_KEY_VALUE,
 
@@ -201,6 +205,7 @@ typedef struct {
 	int dump;
 	int free_entries;
 	int atomic_entries;
+	int coordinator_socket;
 } InstanceConfig;
 
 typedef struct {

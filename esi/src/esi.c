@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
 		//exit_with_message("No especificó el script ESI.", EXIT_FAILURE);
 		argv[1] = malloc(sizeof(char) * 1024);
-		strcpy(argv[1], "esis/ESI_TEST");
+		strcpy(argv[1], "esis/ESI_CM");
 	}
 
 	config = config_create("config.cfg");
@@ -48,6 +48,15 @@ void parse_next_instruction() {
 	size_t len = 0;
 	ssize_t read;
 	t_esi_operacion parsi_instruction;
+
+	if(feof(script_file)) {
+		fclose(script_file);
+		send_message_type(settings.planner_socket, ESI_FINISHED);
+		send_data(settings.planner_socket, &settings.id, sizeof(int));
+		finished = 1;
+		print_and_log_trace(logger, "[END_EXECUTION]");
+		exit_with_message("[EXIT]", EXIT_SUCCESS);
+	}
 
 	if(getline(&line, &len, script_file) != -1) {
 		parsi_instruction = parse(line);
@@ -84,14 +93,6 @@ void parse_next_instruction() {
 	}
 	if (line)
         free(line);
-	if(feof(script_file)) {
-		fclose(script_file);
-		send_message_type(settings.planner_socket, ESI_FINISHED);
-		send_data(settings.planner_socket, &settings.id, sizeof(int));
-		finished = 1;
-		print_and_log_trace(logger, "[END_EXECUTION]");
-		exit_with_message("[EXIT]", EXIT_SUCCESS);
-	}
 }
 
 void * listening_thread() {

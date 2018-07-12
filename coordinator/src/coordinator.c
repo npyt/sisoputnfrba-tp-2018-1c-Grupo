@@ -15,6 +15,7 @@ void * listening_thread(int server_socket);
 void * instance_thread(InstanceRegistration * ir);
 void * planner_thread();
 void * esi_thread(int incoming_socket);
+bool is_up(InstanceRegistration * instance);
 t_list * instance_resources(InstanceRegistration * instance);
 InstanceRegistration * get_instance_for_process(InstructionDetail * instruction);
 InstanceRegistration * search_instance_by_name(char name[INSTANCE_NAME_MAX]);
@@ -23,6 +24,10 @@ int find_first_lowercase (char *key);
 int get_instance_index_by_alg(char* key, int simulation_mode);
 char * get_instance_name_by_alg(char* key, int simulation_mode);
 ResourceRegistration * search_resource(char key[KEY_NAME_MAX]);
+
+int pending_compacts = 0;
+
+pthread_mutex_t enable_instances_feedback;
 
 int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
@@ -64,6 +69,8 @@ int main(int argc, char **argv) {
 		print_and_log_trace(logger, "[FAILED_TO_OPEN_COORDINATOR_PORT]");
 		exit(EXIT_FAILURE);
 	}
+
+	pthread_mutex_init(&enable_instances_feedback, NULL);
 
 	// Threads
 	pthread_t listening_thread_id;
@@ -217,12 +224,12 @@ void * planner_thread() {
 					ResourceRegistration * resource = search_resource(query_key);
 					if(resource == NULL) {
 						sd->real_key = 0;
-						print_and_log_error(logger, "RESOURCE NOT FOUND");
+						print_and_log_error(logger, "[RESOURCE_NOT_FOUND]");
 					} else {
 						sd->real_key = 1;
 						InstanceRegistration * storage = resource->instance;
 
-						print_and_log_info(logger, "RESOURCE FOUND");
+						print_and_log_error(logger, "[RESOURCE_FOUND]");
 
 						if(storage != NULL){ //si se le asigno algun valor a la key
 							strcpy(sd->actual_storage, storage->name);
@@ -236,14 +243,13 @@ void * planner_thread() {
 								i_header->type = COORD_ASKS_FOR_KEY_VALUE; //Reutilizo header recibido por plani (la key esta en header->comment)
 								send_header(storage->socket, i_header);
 
-								print_and_log_info(logger, "pedí valor");
 								pthread_mutex_lock(&storage->mutex);
-								print_and_log_info(logger, "listo para recibir");
 								recieve_data(storage->socket, sd->key_value, sizeof(char) * KEY_VALUE_MAX);
-								print_and_log_info(logger, "aló %s", sd->key_value);
 							} else {
 								strcpy(sd->key_value, "unable_to_get_value");
 							}
+
+							print_and_log_error(logger, "[WITH_VALUE_%s]", sd->key_value);
 						} else {
 							int instance_index = get_instance_index_by_alg(query_key, 1);
 							InstanceRegistration * ir = list_get(instances, instance_index);
@@ -295,12 +301,37 @@ void * instance_thread(InstanceRegistration * ir) {
 				//Allow op
 				header = malloc(sizeof(MessageHeader));
 				switch(i_header->type) {
+					case IM_COMPACTING:
+						recv(ir->socket, i_header, sizeof(MessageHeader), 0);
+						print_and_log_info(logger, "[INSTANCE_TRIGGERED_COMPACT_%s]", ir->name);
+
+						t_list * available_instances = list_filter(instances, (void *)is_up);
+
+						for(int a=0 ; a<available_instances ; a++) {
+							InstanceRegistration * ir = list_get(available_instances, a);
+							send_header(ir->socket, COMPACT_ORDER);
+						}
+
+						pending_compacts = available_instances->elements_count;
+						print_and_log_info(logger, "[WAITING_FOR_%d_COMPACTS]", pending_compacts);
+
+						break;
+					case DONE_COMPACTING:
+						recv(ir->socket, i_header, sizeof(MessageHeader), 0);
+						pending_compacts--;
+						print_and_log_info(logger, "[INSTANCE_%s_DONE_COMPACTING]", ir->name);
+						print_and_log_info(logger, "[WAITING_FOR_%d_COMPACTS]", pending_compacts);
+						if(pending_compacts == 0) {
+							print_and_log_info(logger, "[RESUMING_ACTIVITY]");
+							pthread_mutex_unlock(&enable_instances_feedback);
+						}
+						break;
 					case INSTRUCTION_OK_TO_COORD:
 					case INSTRUCTION_FAILED_TO_COORD:
+						pthread_mutex_unlock(&ir->mutex);
 						break;
 				}
 				free(header);
-				pthread_mutex_unlock(&ir->mutex);
 			}
 			free(i_header);
 		}
@@ -356,10 +387,11 @@ void * esi_thread(int incoming_socket) {
 								print_and_log_trace(logger, "[INSTRUCTION_SENT_TO_INSTANCE][%s]", instance->name);
 
 								//Waiting for response
+								pthread_mutex_lock(&enable_instances_feedback);
 								pthread_mutex_lock(&instance->mutex);
-								print_and_log_trace(logger, "Mutex liberado");
 								recieve_header(instance->socket, response_header);
 								instance->hasdata = 0;
+								pthread_mutex_unlock(&enable_instances_feedback);
 
 								switch(response_header->type) {
 									case INSTRUCTION_OK_TO_COORD:
@@ -494,7 +526,7 @@ int find_first_lowercase (char *key){
     return -1; //error?
 }
 
-bool is_up(InstanceRegistration *instance){
+bool is_up(InstanceRegistration *instance) {
 	return (instance->isup == 1);
 }
 
@@ -545,7 +577,7 @@ int get_instance_index_by_alg(char *key, int simulation_mode) { //TODO algs
 	InstanceRegistration* inst;
 
 	if (instances_to_distribute->elements_count == 0) {
-		print_and_log_info(logger, "NO AVAILABLE INSTANCES");
+		print_and_log_info(logger, "[NO_AVALIABLE_INSTANCE]");
 		return -1;
 	}
 

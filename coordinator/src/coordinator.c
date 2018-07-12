@@ -521,7 +521,7 @@ int get_instance_index_by_alg(char *key, int simulation_mode) { //TODO algs
 				last_used_instance = 0;
 			}
 			chosen_index = last_used_instance;
-			if(simulation_mode == 0){
+			if(simulation_mode == 1){
 				last_used_instance = original_last;
 			}
 			break;

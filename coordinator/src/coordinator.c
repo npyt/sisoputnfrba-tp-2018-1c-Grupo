@@ -274,15 +274,16 @@ void * instance_thread(InstanceRegistration * ir) {
 				instance_limit_calculation();
 			} else {
 				//Allow op
-				pthread_mutex_unlock(&ir->mutex);
 				header = malloc(sizeof(MessageHeader));
 				switch(i_header->type) {
 					case INSTRUCTION_OK_TO_COORD:
 					case INSTRUCTION_FAILED_TO_COORD:
-						ir->hasdata = 1;
+						//print_and_log_info(logger, "recibio");
+						//ir->hasdata = 1;
 						break;
 				}
 				free(header);
+				pthread_mutex_unlock(&ir->mutex);
 			}
 			free(i_header);
 		}
@@ -339,7 +340,9 @@ void * esi_thread(int incoming_socket) {
 
 								//Waiting for response
 								pthread_mutex_lock(&instance->mutex);
-								while(!instance->hasdata){}
+print_and_log_trace(logger, "Mutex liberado");
+								//while(!instance->hasdata){}
+//print_and_log_trace(logger, "ahora hay data");
 								recieve_header(instance->socket, response_header);
 								instance->hasdata = 0;
 

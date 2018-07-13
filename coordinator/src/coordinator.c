@@ -244,7 +244,9 @@ void * planner_thread() {
 								send_header(storage->socket, i_header);
 
 								pthread_mutex_lock(&storage->mutex);
+print_and_log_trace(logger, "mutex liberado");
 								recieve_data(storage->socket, sd->key_value, sizeof(char) * KEY_VALUE_MAX);
+print_and_log_trace(logger, "valor recibido");
 							} else {
 								strcpy(sd->key_value, "unable_to_get_value");
 							}

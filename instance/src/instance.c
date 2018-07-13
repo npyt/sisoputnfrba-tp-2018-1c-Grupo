@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
 		//exit_with_message("No especificó el archivo de configuración.", EXIT_FAILURE);
 		argv[1] = malloc(sizeof(char) * 1024);
-		strcpy(argv[1], "config3.cfg");
+		strcpy(argv[1], "config.cfg");
 	}
 
 	config = config_create(argv[1]);
@@ -237,6 +237,7 @@ void * listening_thread(int coordinator_socket) {
 							print_and_log_trace(logger, "[VALUE_%s]", stored_value);
 
 							send_data(incoming_socket, stored_value, sizeof(char) * KEY_VALUE_MAX);
+							print_and_log_trace(logger, "[VALUE_SENT_TO_COORD]");
 							free(stored_value);
 							break;
 						case COMPACT_ORDER:

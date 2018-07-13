@@ -569,7 +569,7 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 
 
 	//print_and_log_trace(logger, "MAPPING MEMORY ; LU %d", last_used_cell);
-	//map_cells();
+	map_cells();
 	return 1;
 }
 

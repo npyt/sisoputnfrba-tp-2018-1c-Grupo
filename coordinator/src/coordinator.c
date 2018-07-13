@@ -619,8 +619,8 @@ int get_instance_index_by_alg(char *key, int simulation_mode) { //TODO algs
 			}
 			break;
 		case KE:
-			for(int index=0 ; index < inst_number ; index++){
-			inst= list_get(instances,index);
+			for(int index=0 ; index<inst_number ; index++){
+			inst = list_get(instances, index);
 				if((value >= inst->inf) && (value <= inst->sup)) {
 					chosen_index = get_index_by_name(inst->name);
 				}

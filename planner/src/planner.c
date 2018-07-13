@@ -217,9 +217,7 @@ void * listening_thread(int server_socket) {
 						case INSTRUCTION_PERMISSION:
 							recv(incoming_socket, i_header, sizeof(MessageHeader), 0);
 							if(running_esi->kill_on_next_run == 1){
-								running_esi = NULL;
-								running_now = 0;
-								finish_esi(running_esi->esi_id);
+								send_message_type(incoming_socket, INSTRUCTION_NOT_ALLOWED_AND_ABORT);
 							} else {
 								print_and_log_trace(logger, "[COORDINATOR_ASKS_FOR_PERMISSION_TO_EXECUTE]");
 								InstructionDetail * instruction = malloc(sizeof(InstructionDetail));
@@ -706,6 +704,10 @@ t_list * delete_allocations_by_id(int esi_id){
 
 void remove_esi_allocations(int esi_id){
 	allocations = delete_allocations_by_id(esi_id);
+}
+
+void command_finish_to_esi(ESIRegistration * esi) {
+	send_message_type(esi->socket, INSTRUCTION_FAILED_TO_ESI);
 }
 
 void finish_esi(int esi_id){

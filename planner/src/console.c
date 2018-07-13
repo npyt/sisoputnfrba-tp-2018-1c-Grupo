@@ -69,7 +69,7 @@ void kill(char* esi_id_str){
 	int esi_id = atoi(esi_id_str);
 	ESIRegistration * victim = search_esi(esi_id);
 
-	if(victim->status != S_RUNNING) finish_esi(esi_id);
+	if(victim->status != S_RUNNING) command_finish_to_esi(esi_id);
 	else victim->kill_on_next_run = 1;
 }
 

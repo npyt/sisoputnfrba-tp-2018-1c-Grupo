@@ -304,8 +304,7 @@ void * listening_thread(int server_socket) {
 							running_esi->rerun_last_instruction = 0;
 
 							// Subtract estimation
-							if(running_esi->estimation)
-								running_esi->estimation--;
+							running_esi->estimation--;
 
 							print_and_log_trace(logger, "[JOB_COUNTER][%d]", running_esi->job_counter);
 							print_and_log_trace(logger, "[ESTIMATION][%f]", running_esi->estimation);

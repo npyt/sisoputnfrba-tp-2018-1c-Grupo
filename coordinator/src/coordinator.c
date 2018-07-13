@@ -241,12 +241,14 @@ void * planner_thread() {
 								strcpy(sd->simulated_storage, sd->actual_storage);
 
 								i_header->type = COORD_ASKS_FOR_KEY_VALUE; //Reutilizo header recibido por plani (la key esta en header->comment)
+								pthread_mutex_lock(&storage->mutex);
 								send_header(storage->socket, i_header);
 
-								pthread_mutex_lock(&storage->mutex);
-print_and_log_trace(logger, "mutex liberado");
+								print_and_log_trace(logger, "mutex liberado");
 								recieve_data(storage->socket, sd->key_value, sizeof(char) * KEY_VALUE_MAX);
-print_and_log_trace(logger, "valor recibido");
+								print_and_log_trace(logger, "valor recibido");
+
+								pthread_mutex_unlock(&storage->mutex);
 							} else {
 								strcpy(sd->key_value, "unable_to_get_value");
 							}
@@ -309,9 +311,11 @@ void * instance_thread(InstanceRegistration * ir) {
 
 						t_list * available_instances = list_filter(instances, (void *)is_up);
 
-						for(int a=0 ; a<available_instances ; a++) {
-							InstanceRegistration * ir = list_get(available_instances, a);
-							send_header(ir->socket, COMPACT_ORDER);
+						for(int q=0 ; q<available_instances->elements_count ; q++) {
+							InstanceRegistration * tir = list_get(available_instances, q);
+							if(strcmp(tir->name, ir->name) != 0) {
+								send_header(ir->socket, COMPACT_ORDER);
+							}
 						}
 
 						pending_compacts = available_instances->elements_count;
@@ -328,8 +332,7 @@ void * instance_thread(InstanceRegistration * ir) {
 							pthread_mutex_unlock(&enable_instances_feedback);
 						}
 						break;
-					case INSTRUCTION_OK_TO_COORD:
-					case INSTRUCTION_FAILED_TO_COORD:
+					default:
 						pthread_mutex_unlock(&ir->mutex);
 						break;
 				}
@@ -385,6 +388,7 @@ void * esi_thread(int incoming_socket) {
 							if (instance != NULL && instruction->type != GET_OP) { //Available instance and SET or STORE
 								header->type = INSTRUCTION_COORD_INST;
 								instance->hasdata = 0;
+								pthread_mutex_lock(&instance->mutex);
 								send_header_and_data(instance->socket, header, instruction, sizeof(InstructionDetail));
 								print_and_log_trace(logger, "[INSTRUCTION_SENT_TO_INSTANCE][%s]", instance->name);
 
@@ -392,6 +396,8 @@ void * esi_thread(int incoming_socket) {
 								pthread_mutex_lock(&enable_instances_feedback);
 								pthread_mutex_lock(&instance->mutex);
 								recieve_header(instance->socket, response_header);
+
+								pthread_mutex_unlock(&instance->mutex);
 								instance->hasdata = 0;
 								pthread_mutex_unlock(&enable_instances_feedback);
 

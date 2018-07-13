@@ -247,7 +247,6 @@ void * listening_thread(int server_socket) {
 												running_esi->status = S_BLOCKED;
 												running_esi->rerun_last_instruction = 1;
 												add_esi_to_blocked(running_esi);
-												running_esi->job_counter = 0;
 												running_esi = NULL;
 
 												running_now = 0;
@@ -603,6 +602,7 @@ t_list * get_allocations(){
 float estimate(ESIRegistration*esi){
 	float alpha = settings.alpha;
 	float estimation = (alpha/100)*(esi->job_counter) + (1-(alpha/100))*(esi->last_estimation);
+	esi->job_counter = 0;
 	return estimation;
 }
 

@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
 		//exit_with_message("No especificó el archivo de configuración.", EXIT_FAILURE);
 		argv[1] = malloc(sizeof(char) * 1024);
-		strcpy(argv[1], "config.cfg");
+		strcpy(argv[1], "config3.cfg");
 	}
 
 	config = config_create(argv[1]);
@@ -567,8 +567,8 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 	}
 
 
-	print_and_log_trace(logger, "MAPPING MEMORY ; LU %d", last_used_cell);
-	map_cells();
+	//print_and_log_trace(logger, "MAPPING MEMORY ; LU %d", last_used_cell);
+	//map_cells();
 	return 1;
 }
 

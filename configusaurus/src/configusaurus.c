@@ -15,6 +15,7 @@ t_config * esi_config;
 int main(void) {
 	char * buffer = malloc(128 * sizeof(char));
 	char * ip_coord_buffer = malloc(128 * sizeof(char));
+	char * buffer_name = malloc(128 * sizeof(char));
 	int instances;
 	planner_config = config_create("../../planner/src/config.cfg");
 	coordinator_config = config_create("../../coordinator/src/config.cfg");
@@ -25,7 +26,7 @@ int main(void) {
 	scanf("%s", ip_coord_buffer);
 	config_set_value(planner_config, "COORD_IP", ip_coord_buffer);
 	config_set_value(esi_config, "COORD_IP", ip_coord_buffer);
-	printf("[LOADED_%s]\n", buffer);
+	printf("[LOADED_%s]\n", ip_coord_buffer);
 
 	printf("# [PLANNER_IP]\n> ");
 	scanf("%s", buffer);
@@ -80,8 +81,8 @@ int main(void) {
 	printf("[LOADED_%s_INSTANCES]\n", buffer);
 
 	printf("## [INSTANCE_GENERIC_NAME]\n> ");
-	scanf("%s", buffer);
-	printf("[LOADED_%s]\n", buffer);
+	scanf("%s", buffer_name);
+	printf("[LOADED_%s]\n", buffer_name);
 
 	for(int i = 1; i <= instances ; i++){
 		t_config * instance_config;
@@ -94,9 +95,9 @@ int main(void) {
 		if(!fopen(path, "w")){
 		}
 		instance_config = config_create(path);
-		sprintf(buffer, "%s%d", buffer, i);
+		sprintf(buffer, "%s%d", buffer_name, i);
 		config_set_value(instance_config, "NAME", buffer);
-		config_set_value(instance_config, "PORT_COORD", "8000");
+		config_set_value(instance_config, "COORD_PORT", "8000");
 		config_set_value(instance_config, "MOUNTING_POINT", "/home/utnso/inst1");
 		config_set_value(instance_config, "COORD_IP", ip_coord_buffer);
 		printf("### [INSTANCE_NUMBER_%d_CONFIGURATION] ###\n", i);
@@ -120,6 +121,7 @@ int main(void) {
 	config_save(esi_config);;
 	config_save(planner_config);
 	free(buffer);
+	free(buffer_name);
 	free(ip_coord_buffer);
 	printf("[ESITOSO]");
 	return EXIT_SUCCESS;

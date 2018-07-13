@@ -25,9 +25,9 @@ int get_instance_index_by_alg(char* key, int simulation_mode);
 char * get_instance_name_by_alg(char* key, int simulation_mode);
 ResourceRegistration * search_resource(char key[KEY_NAME_MAX]);
 
-int pending_compacts = 0;
+pthread_mutex_t instance_feedback;
 
-pthread_mutex_t enable_instances_feedback;
+int pending_compacts = 0;
 
 int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
@@ -63,14 +63,14 @@ int main(int argc, char **argv) {
 	resources = list_create();
 	instances = list_create();
 
+	pthread_mutex_init(&instance_feedback);
+
 	// Starting server socket
 	int my_socket = prepare_socket_in_port(settings.port);
 	if (my_socket == -1) {
 		print_and_log_trace(logger, "[FAILED_TO_OPEN_COORDINATOR_PORT]");
 		exit(EXIT_FAILURE);
 	}
-
-	pthread_mutex_init(&enable_instances_feedback, NULL);
 
 	// Threads
 	pthread_t listening_thread_id;
@@ -157,8 +157,6 @@ void * listening_thread(int server_socket) {
 							ResourceRegistration * rr = list_get(re_resources, a);
 							send_data(prev_inst->socket, rr->key, sizeof(char) * KEY_NAME_MAX);
 						}
-
-						pthread_mutex_unlock(&ir->mutex);
 						prev_inst->isup = 1;
 					}
 
@@ -240,15 +238,12 @@ void * planner_thread() {
 								sd->storage_isup = 1;
 								strcpy(sd->simulated_storage, sd->actual_storage);
 
+								pthread_mutex_lock(&instance_feedback);
 								i_header->type = COORD_ASKS_FOR_KEY_VALUE; //Reutilizo header recibido por plani (la key esta en header->comment)
-								pthread_mutex_lock(&storage->mutex);
 								send_header(storage->socket, i_header);
+								pthread_mutex_unlock(&instance_feedback);
 
-								print_and_log_trace(logger, "mutex liberado");
 								recieve_data(storage->socket, sd->key_value, sizeof(char) * KEY_VALUE_MAX);
-								print_and_log_trace(logger, "valor recibido");
-
-								pthread_mutex_unlock(&storage->mutex);
 							} else {
 								strcpy(sd->key_value, "unable_to_get_value");
 							}
@@ -265,9 +260,6 @@ void * planner_thread() {
 					free(sd);
 
 					break;
-				default:
-					pthread_mutex_unlock(&settings.mutex);
-					break;
 			}
 			free(header);
 		}
@@ -277,10 +269,12 @@ void * planner_thread() {
 
 void * instance_thread(InstanceRegistration * ir) {
 	MessageHeader * header = malloc(sizeof(MessageHeader));
-
-	pthread_mutex_init(&ir->mutex, NULL);
 	ir->isup = 1;
 	instance_limit_calculation();
+
+	pthread_mutex_init(&ir->available);
+	pthread_mutex_init(&ir->gonnaread);
+	pthread_mutex_lock(&ir->available);
 
 	free(header);
 
@@ -319,6 +313,7 @@ void * instance_thread(InstanceRegistration * ir) {
 						}
 
 						pending_compacts = available_instances->elements_count;
+						print_and_log_info(logger, "[LOCKING_INSTANCE_STEP_ALLOWANCE]");
 						print_and_log_info(logger, "[WAITING_FOR_%d_COMPACTS]", pending_compacts);
 
 						break;
@@ -328,12 +323,20 @@ void * instance_thread(InstanceRegistration * ir) {
 						print_and_log_info(logger, "[INSTANCE_%s_DONE_COMPACTING]", ir->name);
 						print_and_log_info(logger, "[WAITING_FOR_%d_COMPACTS]", pending_compacts);
 						if(pending_compacts == 0) {
-							print_and_log_info(logger, "[RESUMING_ACTIVITY]");
-							pthread_mutex_unlock(&enable_instances_feedback);
+							print_and_log_info(logger, "[RESUMING_INSTANCE_ACTIVITY]");
+							pthread_mutex_unlock(&ir->available);
 						}
 						break;
+					case INSTRUCTION_OK_TO_COORD:
+					case INSTRUCTION_FAILED_TO_COORD:
+						print_and_log_info(logger, "DATA RECIEVED TOFREE");
+						pthread_mutex_unlock(&ir->available);
+						print_and_log_info(logger, "FREE");
+						pthread_mutex_lock(&ir->gonnaread);
+						pthread_mutex_lock(&ir->available);
+						pthread_mutex_unlock(&ir->gonnaread);
+						break;
 					default:
-						pthread_mutex_unlock(&ir->mutex);
 						break;
 				}
 				free(header);
@@ -377,7 +380,6 @@ void * esi_thread(int incoming_socket) {
 
 					//Waiting for response
 					MessageHeader * response_header = malloc(sizeof(MessageHeader));
-					pthread_mutex_lock(&settings.mutex);
 					recieve_header(settings.planner_socket, response_header);
 
 					switch (response_header->type) {
@@ -387,25 +389,25 @@ void * esi_thread(int incoming_socket) {
 							InstanceRegistration * instance = get_instance_for_process(instruction);
 							if (instance != NULL && instruction->type != GET_OP) { //Available instance and SET or STORE
 								header->type = INSTRUCTION_COORD_INST;
-								instance->hasdata = 0;
-								pthread_mutex_lock(&instance->mutex);
+
+								print_and_log_info(logger, "[WAITING_FOR_INSTANCE_ALLOWANCE]");
+								pthread_mutex_lock(&instance_feedback);
+								print_and_log_info(logger, "[GRANTED]");
 								send_header_and_data(instance->socket, header, instruction, sizeof(InstructionDetail));
 								print_and_log_trace(logger, "[INSTRUCTION_SENT_TO_INSTANCE][%s]", instance->name);
 
 								//Waiting for response
-								pthread_mutex_lock(&enable_instances_feedback);
-								pthread_mutex_lock(&instance->mutex);
+								pthread_mutex_lock(&instance->gonnaread);
+								print_and_log_info(logger, "[WAITING_FOR_INSTANCE_ALLOWANCE]");
+								pthread_mutex_lock(&instance->available);
+								print_and_log_info(logger, "[GRANTED]");
 								recieve_header(instance->socket, response_header);
-
-								pthread_mutex_unlock(&instance->mutex);
-								instance->hasdata = 0;
-								pthread_mutex_unlock(&enable_instances_feedback);
 
 								switch(response_header->type) {
 									case INSTRUCTION_OK_TO_COORD:
 										print_and_log_trace(logger, "[OPERATION_SUCCESSFUL][INFORMING_PLANNER]");
-										recieve_data(instance->socket, &instance->free_entries, sizeof(int)); // Receiving free_entries from instance
 
+										recieve_data(instance->socket, &instance->free_entries, sizeof(int)); // Receiving free_entries from instance
 										send_message_type(settings.planner_socket, INSTRUCTION_OK_TO_PLANNER);
 
 										if(instruction->type != SET_OP) {
@@ -433,6 +435,9 @@ void * esi_thread(int incoming_socket) {
 										send_message_type(incoming_socket, INSTRUCTION_FAILED_TO_ESI);
 										break;
 								}
+								pthread_mutex_unlock(&instance->available);
+								pthread_mutex_unlock(&instance->gonnaread);
+								pthread_mutex_unlock(&instance_feedback);
 							} else if (instruction->type == GET_OP) { //GET OP, allocated instance but no need to send instruction
 								print_and_log_trace(logger, "[OPERATION_SUCCESSFUL][INFORMING_PLANNER]");
 								send_message_type(settings.planner_socket, INSTRUCTION_OK_TO_PLANNER);

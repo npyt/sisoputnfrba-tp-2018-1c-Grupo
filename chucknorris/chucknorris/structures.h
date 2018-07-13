@@ -160,7 +160,6 @@ typedef struct {
 	int entry_size;
 	int delay;
 	int planner_socket;
-	pthread_mutex_t mutex;
 } CoordinatorConfig;
 
 typedef struct {
@@ -175,9 +174,9 @@ typedef struct {
 	int inf;
 	int sup;
 	int free_entries;
-	pthread_mutex_t mutex;
-	int hasdata;
 	int isup;
+	pthread_mutex_t available;
+	pthread_mutex_t gonnaread;
 } InstanceRegistration;
 
 typedef struct {

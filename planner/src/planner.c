@@ -321,7 +321,6 @@ void * listening_thread(int server_socket) {
 							finish_esi(esi_f_id);
 							running_esi = NULL;
 							running_now = 0;
-							print_and_log_debug(logger, "aa aa aa isr=%d", running_now);
 
 							break;
 						case ESI_FINISHED_BY_ERROR:
@@ -729,7 +728,6 @@ ResourceAllocation * find_allocation_node(int esi_id, int type){
 }
 
 StatusData * get_status(char * key){
-	print_and_log_error(logger, "HABILITADO");
 	StatusData * sd = malloc(sizeof(StatusData));
 
 	MessageHeader * header = malloc(sizeof(MessageHeader));

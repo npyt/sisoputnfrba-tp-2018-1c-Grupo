@@ -587,17 +587,20 @@ char * get_file_path(char key[KEY_NAME_MAX]) {
 int dump_storage(ResourceStorage * rs) {
 	char * file_name = get_file_path(rs->key);
 
-	FILE * fd = fopen(file_name, "wb+");
-	if(rs->size != 0) {
-		for(int q=0 ; q<rs->cell_count ; q++) {
-			StorageCell * cell = list_get(storage_cells, rs->cell_id + q);
-			cell->last_reference = local_operation_counter;
-			fwrite(cell->content, cell->content_size, 1, fd);
+	FILE * fd = fopen(file_name, "w");
+	if(fd) {
+		if(rs->size != 0) {
+			for(int q=0 ; q<rs->cell_count ; q++) {
+				StorageCell * cell = list_get(storage_cells, rs->cell_id + q);
+				cell->last_reference = local_operation_counter;
+				fwrite(cell->content, cell->content_size, 1, fd);
+			}
+		} else {
 		}
+		fclose(fd);
 	} else {
-		//No content
+		print_and_log_error(logger, "[COULD_NOT_OPEN_FILE]");
 	}
-	fclose(fd);
 
 	print_and_log_trace(logger, "[DUMPED_KEY][%s]", rs->key);
 	fflush(stdout);

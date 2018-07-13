@@ -136,6 +136,7 @@ typedef struct {
 	ESIStatus status;
 
 	float estimation;
+	float last_estimation;
 	float response_ratio;
 	int job_counter;
 	int waiting_counter;

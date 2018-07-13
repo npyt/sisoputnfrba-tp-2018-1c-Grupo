@@ -199,6 +199,7 @@ void * listening_thread(int server_socket) {
 							re->kill_on_next_run = 0;
 							re->status = S_READY;
 							re->estimation= settings.init_est;
+							re->last_estimation = re->estimation;
 							re->waiting_counter=0;
 							re->job_counter=0;
 							re->response_ratio=0;
@@ -246,6 +247,7 @@ void * listening_thread(int server_socket) {
 												running_esi->status = S_BLOCKED;
 												running_esi->rerun_last_instruction = 1;
 												add_esi_to_blocked(running_esi);
+												running_esi->job_counter = 0;
 												running_esi = NULL;
 
 												running_now = 0;
@@ -303,9 +305,6 @@ void * listening_thread(int server_socket) {
 
 							running_esi->rerun_last_instruction = 0;
 
-							// Subtract estimation
-							running_esi->estimation--;
-
 							print_and_log_trace(logger, "[JOB_COUNTER][%d]", running_esi->job_counter);
 							print_and_log_trace(logger, "[ESTIMATION][%f]", running_esi->estimation);
 
@@ -361,6 +360,7 @@ void * running_thread(int a) {
 				running_now = 1;
 				print_and_log_trace(logger, "[ESI_WILL_EXECUTE][%d]", running_esi->esi_id);
 				running_esi->job_counter++;
+				running_esi->estimation--;
 				if(running_esi->rerun_last_instruction) {
 					send_message_type(running_esi->socket, EXECUTE_PREV_INSTRUCTION);
 				} else {
@@ -602,7 +602,7 @@ t_list * get_allocations(){
  */
 float estimate(ESIRegistration*esi){
 	float alpha = settings.alpha;
-	float estimation = (alpha/100)*(esi->job_counter) + (1-(alpha/100))*(esi->estimation);
+	float estimation = (alpha/100)*(esi->job_counter) + (1-(alpha/100))*(esi->last_estimation);
 	return estimation;
 }
 
@@ -659,6 +659,7 @@ void sort_queues() {
 		}
 		if(re->status == S_READY) {
 			re->estimation = estimate(re);
+			re->last_estimation = re->estimation;
 			print_and_log_trace(logger, "[NEW_ESTIMATION][%f]", re->estimation);
 			list_add(ready_queue, list_remove(blocked_queue, a));
 		}

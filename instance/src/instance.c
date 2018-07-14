@@ -241,6 +241,8 @@ void * listening_thread(int coordinator_socket) {
 							free(stored_value);
 							break;
 						case COMPACT_ORDER:
+							;
+							int ads; recv(incoming_socket, &ads, sizeof(int), 0);
 							print_and_log_trace(logger, "[COORDINATOR_ORDERS_ME_TO_COMPACT]");
 							compact(1);
 							break;
@@ -310,8 +312,6 @@ ResourceStorage * search_resource_by_cell_id(int id) {
 int compact(int from_coordinator) {
 	if(!from_coordinator) {
 		send_message_type(settings.coordinator_socket, IM_COMPACTING);
-	} else {
-		pthread_mutex_lock(&allow_listening);
 	}
 	print_and_log_trace(logger, "[COMPACT_START]");
 	int allocated_cells = entry_settings.entry_count - settings.free_entries;
@@ -361,9 +361,6 @@ int compact(int from_coordinator) {
 	send_message_type(settings.coordinator_socket, DONE_COMPACTING);
 	print_and_log_trace(logger, "[COMPACT_END]");
 
-	if(from_coordinator) {
-		pthread_mutex_lock(&allow_listening);
-	}
 	return destination_cell;
 }
 

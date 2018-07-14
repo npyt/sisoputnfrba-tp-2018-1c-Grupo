@@ -304,21 +304,23 @@ void * instance_thread(InstanceRegistration * ir) {
 						print_and_log_info(logger, "[INSTANCE_TRIGGERED_COMPACT_%s]", ir->name);
 
 						t_list * available_instances = list_filter(instances, (void *)is_up);
-
-						for(int q=0 ; q<available_instances->elements_count ; q++) {
-							InstanceRegistration * tir = list_get(available_instances, q);
-							if(strcmp(tir->name, ir->name) != 0) {
-								send_header(ir->socket, COMPACT_ORDER);
-							}
-						}
-
 						pending_compacts = available_instances->elements_count;
+
 						print_and_log_info(logger, "[LOCKING_INSTANCE_STEP_ALLOWANCE]");
 						print_and_log_info(logger, "[WAITING_FOR_%d_COMPACTS]", pending_compacts);
 
+						for(int c=0 ; c<available_instances->elements_count ; c++) {
+							InstanceRegistration * inre = list_get(available_instances, c);
+							if(inre->socket != ir->socket) {
+								print_and_log_trace(logger, "COMAND %s TO COMPACT", inre->name);
+								header->type = COMPACT_ORDER;
+								send_header_and_data(inre->socket, header, &inre->socket, sizeof(int));
+							}
+						}
 						break;
 					case DONE_COMPACTING:
 						recv(ir->socket, i_header, sizeof(MessageHeader), 0);
+
 						pending_compacts--;
 						print_and_log_info(logger, "[INSTANCE_%s_DONE_COMPACTING]", ir->name);
 						print_and_log_info(logger, "[WAITING_FOR_%d_COMPACTS]", pending_compacts);

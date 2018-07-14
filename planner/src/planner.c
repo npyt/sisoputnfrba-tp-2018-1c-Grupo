@@ -359,6 +359,8 @@ void * running_thread(int a) {
 				print_and_log_trace(logger, "[ESI_WILL_EXECUTE][%d]", running_esi->esi_id);
 				running_esi->job_counter++;
 				running_esi->estimation--;
+				print_and_log_trace(logger, "[ESI_%d][REMAINDER][%f][LAST_ESTIMATION][%f]",
+							running_esi->esi_id, running_esi->estimation, running_esi->last_estimation);
 				if(running_esi->rerun_last_instruction) {
 					send_message_type(running_esi->socket, EXECUTE_PREV_INSTRUCTION);
 				} else {
@@ -602,6 +604,7 @@ float estimate(ESIRegistration*esi){
 	float alpha = settings.alpha;
 	float estimation = (alpha/100)*(esi->job_counter) + (1-(alpha/100))*(esi->last_estimation);
 	esi->job_counter = 0;
+	print_and_log_trace(logger, "[NEW_ESTIMATION][%f]", estimation);
 	return estimation;
 }
 
@@ -659,7 +662,6 @@ void sort_queues() {
 		if(re->status == S_READY) {
 			re->estimation = estimate(re);
 			re->last_estimation = re->estimation;
-			print_and_log_trace(logger, "[NEW_ESTIMATION][%f]", re->estimation);
 			list_add(ready_queue, list_remove(blocked_queue, a));
 		}
 	}

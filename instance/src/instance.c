@@ -78,7 +78,6 @@ void * dump_thread() {
 				dump_storage(list_get(resources, a));
 			}
 		}
-		sleep(5);
 		print_and_log_trace(logger, "[DUMP_FINISHED]");
 		pthread_mutex_unlock(&allow_listening);
 	}

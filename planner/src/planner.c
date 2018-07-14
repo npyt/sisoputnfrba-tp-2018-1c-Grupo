@@ -356,6 +356,7 @@ void * running_thread(int a) {
 				print_and_log_trace(logger, "[ESI_WILL_EXECUTE][%d]", running_esi->esi_id);
 				running_esi->job_counter++;
 				running_esi->estimation--;
+				running_esi->waiting_counter = 0;
 				// Prepare ratio for HRRN
 				if(settings.planning_alg == HRRN){
 					ready_queue = map_list_for_hrrn();

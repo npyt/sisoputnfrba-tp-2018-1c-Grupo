@@ -60,8 +60,8 @@ int main(int argc, char **argv) {
 
 	pthread_t listening_thread_id;
 	pthread_create(&listening_thread_id, NULL, listening_thread, coordinator_socket);
-	//pthread_t dump_thread_id;
-	//pthread_create(&dump_thread_id, NULL, dump_thread, NULL);
+	pthread_t dump_thread_id;
+	pthread_create(&dump_thread_id, NULL, dump_thread, NULL);
 
 	pthread_exit(NULL);
 

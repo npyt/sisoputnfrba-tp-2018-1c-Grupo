@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
 		//exit_with_message("No especificó el archivo de configuración.", EXIT_FAILURE);
 		argv[1] = malloc(sizeof(char) * 1024);
-		strcpy(argv[1], "config2.cfg");
+		strcpy(argv[1], "config.cfg");
 	}
 
 	config = config_create(argv[1]);
@@ -148,6 +148,8 @@ void * listening_thread(int coordinator_socket) {
 							print_and_log_trace(logger, "[COORDINATOR_GIVES_CONFIG][%d_ENTRIES][%d_SIZE]", entry_settings.entry_count, entry_settings.entry_size);
 
 							prepare_storage();
+
+							send_message_type(incoming_socket, INSTANCE_LOADED);
 							break;
 						case HSK_INST_COORD_RELOAD: //If i was down, must reload previous keys from the mounting point
 							print_and_log_trace(logger, "[COORDINATOR_SAYS_HI][I_MUST_RELOAD_PREVIOUS_KEYS]");

@@ -299,6 +299,10 @@ void * instance_thread(InstanceRegistration * ir) {
 				//Allow op
 				header = malloc(sizeof(MessageHeader));
 				switch(i_header->type) {
+					case INSTANCE_LOADED:
+						recv(ir->socket, i_header, sizeof(MessageHeader), 0);
+						print_and_log_info(logger, "[INSTANCE_COMPLETED_LOAD_%s]", ir->name);
+						break;
 					case IM_COMPACTING:
 						recv(ir->socket, i_header, sizeof(MessageHeader), 0);
 						print_and_log_info(logger, "[INSTANCE_TRIGGERED_COMPACT_%s]", ir->name);

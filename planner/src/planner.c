@@ -307,9 +307,6 @@ void * listening_thread(int server_socket) {
 							print_and_log_trace(logger, "[JOB_COUNTER][%d]", running_esi->job_counter);
 							print_and_log_trace(logger, "[ESTIMATION][%f]", running_esi->estimation);
 
-							// Prepare ratio for HRRN
-							if(settings.planning_alg == HRRN)
-								ready_queue = map_list_for_hrrn();
 							running_now = 0;
 							break;
 						case ESI_FINISHED:
@@ -359,6 +356,15 @@ void * running_thread(int a) {
 				print_and_log_trace(logger, "[ESI_WILL_EXECUTE][%d]", running_esi->esi_id);
 				running_esi->job_counter++;
 				running_esi->estimation--;
+				// Prepare ratio for HRRN
+				if(settings.planning_alg == HRRN){
+					ready_queue = map_list_for_hrrn();
+					for(int i = 0; i < ready_queue->elements_count; i++){
+						ESIRegistration * esi = list_get(ready_queue, i);
+						print_and_log_trace(logger, "[ESI_%d][S][%f][W][%d][RR][%f]",
+									esi->esi_id, esi->estimation, esi->waiting_counter, esi->response_ratio);
+					}
+				}
 				print_and_log_trace(logger, "[ESI_%d][REMAINDER][%f][LAST_ESTIMATION][%f]",
 							running_esi->esi_id, running_esi->estimation, running_esi->last_estimation);
 				if(running_esi->rerun_last_instruction) {

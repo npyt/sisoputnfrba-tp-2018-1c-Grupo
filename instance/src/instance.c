@@ -313,7 +313,7 @@ ResourceStorage * search_resource_by_cell_id(int id) {
 }
 
 int compact(int from_coordinator) {
-	pthread_mutex_lock(&compact_mutex);
+	//pthread_mutex_lock(&compact_mutex);
 	if(!from_coordinator) {
 		send_message_type(settings.coordinator_socket, IM_COMPACTING);
 	}
@@ -364,7 +364,7 @@ int compact(int from_coordinator) {
 	}
 	send_message_type(settings.coordinator_socket, DONE_COMPACTING);
 	print_and_log_trace(logger, "[COMPACT_END]");
-	pthread_mutex_unlock(&compact_mutex);
+	//pthread_mutex_unlock(&compact_mutex);
 	return destination_cell;
 }
 

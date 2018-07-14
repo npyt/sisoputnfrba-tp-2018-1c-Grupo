@@ -49,15 +49,6 @@ void parse_next_instruction() {
 	ssize_t read;
 	t_esi_operacion parsi_instruction;
 
-	if(feof(script_file)) {
-		fclose(script_file);
-		send_message_type(settings.planner_socket, ESI_FINISHED);
-		send_data(settings.planner_socket, &settings.id, sizeof(int));
-		finished = 1;
-		print_and_log_trace(logger, "[END_EXECUTION]");
-		exit_with_message("[EXIT]", EXIT_SUCCESS);
-	}
-
 	if(getline(&line, &len, script_file) != -1) {
 		parsi_instruction = parse(line);
 
@@ -93,6 +84,15 @@ void parse_next_instruction() {
 	}
 	if (line)
         free(line);
+
+	if(feof(script_file)) {
+		fclose(script_file);
+		send_message_type(settings.planner_socket, ESI_FINISHED);
+		send_data(settings.planner_socket, &settings.id, sizeof(int));
+		finished = 1;
+		print_and_log_trace(logger, "[END_EXECUTION]");
+		exit_with_message("[EXIT]", EXIT_SUCCESS);
+	}
 }
 
 void * listening_thread() {

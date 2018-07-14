@@ -329,9 +329,7 @@ void * instance_thread(InstanceRegistration * ir) {
 						break;
 					case INSTRUCTION_OK_TO_COORD:
 					case INSTRUCTION_FAILED_TO_COORD:
-						print_and_log_info(logger, "DATA RECIEVED TOFREE");
 						pthread_mutex_unlock(&ir->available);
-						print_and_log_info(logger, "FREE");
 						pthread_mutex_lock(&ir->gonnaread);
 						pthread_mutex_lock(&ir->available);
 						pthread_mutex_unlock(&ir->gonnaread);

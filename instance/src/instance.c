@@ -19,6 +19,7 @@ char * get_file_path(char key[KEY_NAME_MAX]);
 ResourceStorage * get_key(char key[KEY_NAME_MAX], int force_creation);
 
 pthread_mutex_t allow_listening;
+pthread_mutex_t compact_mutex;
 
 int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
@@ -48,6 +49,7 @@ int main(int argc, char **argv) {
 	config_destroy(config);
 
 	pthread_mutex_init(&allow_listening, NULL);
+	pthread_mutex_init(&compact_mutex, NULL);	
 
 	storage_cells = NULL;
 	resources = NULL;
@@ -312,6 +314,7 @@ ResourceStorage * search_resource_by_cell_id(int id) {
 }
 
 int compact(int from_coordinator) {
+	pthread_mutex_lock(&compact_mutex);
 	if(!from_coordinator) {
 		send_message_type(settings.coordinator_socket, IM_COMPACTING);
 	}
@@ -362,7 +365,7 @@ int compact(int from_coordinator) {
 	}
 	send_message_type(settings.coordinator_socket, DONE_COMPACTING);
 	print_and_log_trace(logger, "[COMPACT_END]");
-
+	pthread_mutex_unlock(&compact_mutex);
 	return destination_cell;
 }
 
@@ -437,6 +440,7 @@ void free_cell(StorageCell * sc) {
 }
 
 int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
+	pthread_mutex_lock(&compact_mutex);
 	int bytes_needed = strlen(value) * sizeof(char);
 	float cells_needed_f = (float)bytes_needed / (float)entry_settings.entry_size;
 	int cells_needed = bytes_needed / entry_settings.entry_size;
@@ -569,6 +573,7 @@ int set_storage(ResourceStorage * rs, char value[KEY_VALUE_MAX]) {
 
 	//print_and_log_trace(logger, "MAPPING MEMORY ; LU %d", last_used_cell);
 	map_cells();
+	pthread_mutex_unlock(&compact_mutex);
 	return 1;
 }
 

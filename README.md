@@ -36,18 +36,18 @@
 
 - [X] ESI completo
 - [X] Planificador utilizando SJF con y sin desalojo, con todas sus colas.
-- [ ] La consola del Planificador deberá poder ejecutar los comandos "Pausar/Continuar", "Bloquear", "Desbloquear" y "Listar"
+- [X] La consola del Planificador deberá poder ejecutar los comandos "Pausar/Continuar", "Bloquear", "Desbloquear" y "Listar"
 - [X] El Coordinador deberá tener el "Log de Operaciones" funcionando. También deberá ser capaz de comunicar bloqueos.
 - [X] La Instancia deberá implementar todas las instrucciones. A la hora de reemplazar claves, deberá implementar el algoritmo Circular
 
 ### [Checkpoint 4 - No Presencial](https://sisoputnfrba.gitbook.io/re-distinto/descripcion-de-las-entregas#checkpoint-4-no-presencial)
 
 - [X] Planificador utilizando HRRN
-- [ ] La consola del Planificador deberá poder ejecutar los comandos "kill" y "status"
-- [ ] El Coordinador deberá ser capaz de distribuir utilizando "LSU" y "KE". Implementar retardos
-- [ ] La Instancia deberá ser capaz de soportar desconexiones y reincorporaciones. Además se deberá implementar el algoritmo LRU
+- [X] La consola del Planificador deberá poder ejecutar los comandos "kill" y "status"
+- [X] El Coordinador deberá ser capaz de distribuir utilizando "LSU" y "KE". Implementar retardos
+- [X] La Instancia deberá ser capaz de soportar desconexiones y reincorporaciones. Además se deberá implementar el algoritmo LRU
 
 ### [Entrega final - Presencial - Laboratorio](https://sisoputnfrba.gitbook.io/re-distinto/descripcion-de-las-entregas#entrega-final-presencial-laboratorio)
 
-- [ ]  La consola del Planificador deberá poder ejecutar el comando "deadlock"
-- [ ]  La Instancia deberá ser capaz de soportar dumps y compactación. Se deberá implementar el algoritmo BSU
+- [X]  La consola del Planificador deberá poder ejecutar el comando "deadlock"
+- [X]  La Instancia deberá ser capaz de soportar dumps y compactación. Se deberá implementar el algoritmo BSU

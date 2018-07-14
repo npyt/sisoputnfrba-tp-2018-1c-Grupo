@@ -1,7 +1,7 @@
 cd
-mkdir instancia1
-mkdir instancia2
-mkdir instancia3
+mkdir inst1
+mkdir inst2
+mkdir inst3
 
 cd tp-2018-1c-Grupo
 
@@ -41,4 +41,5 @@ cd ..
 
 clear
 
-echo "Listorti Compilacion"
+echo "Listorti Compilación"
+echo "Compilación ESItosa"

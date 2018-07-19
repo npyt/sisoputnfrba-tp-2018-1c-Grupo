@@ -643,7 +643,7 @@ void sort_by_ratio() {
  */
 void sort_by_burst() {
     int _sort_burst_esi(ESIRegistration * one, ESIRegistration * two) {
-        return (one->estimation<two->estimation);
+        return (one->estimation<=two->estimation);
     }
     if(list_size(ready_queue)>0)
     	list_sort(ready_queue, (void*)_sort_burst_esi);

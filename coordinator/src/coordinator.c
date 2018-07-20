@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
 		//exit_with_message("Please write a config filename.", EXIT_FAILURE);
 		argv[1] = malloc(sizeof(char) * 1024);
-		strcpy(argv[1], "config.cfg");
+		strcpy(argv[1], "config/minima.cfg");
 	}
 
 	// Creating log and config files
@@ -75,6 +75,8 @@ int main(int argc, char **argv) {
 	// Threads
 	pthread_t listening_thread_id;
 	pthread_create(&listening_thread_id, NULL, listening_thread, my_socket);
+
+	pthread_join(listening_thread_id);
 
 	// Exit
 	pthread_exit(NULL);
@@ -203,6 +205,7 @@ void * planner_thread() {
 		if (recv(settings.planner_socket, i_header, sizeof(MessageHeader), MSG_PEEK) <= 0 ) {
 			//Disconnected
 			print_and_log_trace(logger, "[SOCKET_DISCONNECTED][PLANNER]");
+			exit(EXIT_FAILURE);
 		} else {
 			//New message
 			MessageHeader * header = malloc(sizeof(MessageHeader));

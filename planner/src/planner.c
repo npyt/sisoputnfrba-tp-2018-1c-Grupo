@@ -11,6 +11,7 @@ ESIRegistration * running_esi;
 PlannerConfig settings;
 
 pthread_mutex_t mutex_coordinator;
+pthread_mutex_t mutex_pausa;
 
 //Flags
 int ESI_name_counter;
@@ -29,7 +30,7 @@ int main(int argc, char **argv) {
 	if(argv[1] == NULL) {
 		//exit_with_message("No especificó el archivo de configuración.", EXIT_FAILURE);
 		argv[1] = malloc(sizeof(char) * 1024);
-		strcpy(argv[1], "config.cfg");
+		strcpy(argv[1], "config/minima.cfg");
 	}
 
 	// Creating log and config files
@@ -58,6 +59,7 @@ int main(int argc, char **argv) {
 	free(buffer);
 
 	pthread_mutex_init(&mutex_coordinator, NULL);
+	pthread_mutex_init(&mutex_pausa, NULL);
 
 	// First flag and queues inits
 	ESI_name_counter = 0;
@@ -81,11 +83,16 @@ int main(int argc, char **argv) {
 	pthread_create(&listening_thread_id, NULL, listening_thread, my_socket);
 
 	pthread_t console_thread_id;
-	pthread_create(&console_thread_id, NULL, planner_console_launcher, NULL);
+	pthread_create(&console_thread_id, NULL, planner_console_launcher, &mutex_pausa);
 
 //	// Test thread
 //	pthread_t w_thread_id;
 //	pthread_create(&w_thread_id, NULL, w_thread, my_socket);
+
+
+	pthread_join(listening_thread_id, NULL);
+	pthread_join(running_thread_id, NULL);
+	pthread_join(console_thread_id, NULL);
 
 	// Exit
 	pthread_exit(NULL);
@@ -349,33 +356,33 @@ void * running_thread(int a) {
 		// Sort
 		sort_queues();
 		// Verify running state
-		if (get_running_flag()) {
-			if(running_esi != NULL && !running_now) {
-				// Run ESI in running
-				running_now = 1;
-				print_and_log_trace(logger, "[ESI_WILL_EXECUTE][%d]", running_esi->esi_id);
-				running_esi->job_counter++;
-				running_esi->estimation--;
-				running_esi->waiting_counter = 0;
-				// Prepare ratio for HRRN
-				if(settings.planning_alg == HRRN){
-					ready_queue = map_list_for_hrrn();
-					for(int i = 0; i < ready_queue->elements_count; i++){
-						ESIRegistration * esi = list_get(ready_queue, i);
-						print_and_log_trace(logger, "[ESI_%d][S][%f][W][%d][RR][%f]",
-									esi->esi_id, esi->estimation, esi->waiting_counter, esi->response_ratio);
-					}
-				}
-				print_and_log_trace(logger, "[ESI_%d][REMAINDER][%f][LAST_ESTIMATION][%f]",
-							running_esi->esi_id, running_esi->estimation, running_esi->last_estimation);
-				if(running_esi->rerun_last_instruction) {
-					send_message_type(running_esi->socket, EXECUTE_PREV_INSTRUCTION);
-				} else {
-					send_message_type(running_esi->socket, EXECUTE_NEXT_INSTRUCTION);
+		pthread_mutex_lock(&mutex_pausa);
+		if(running_esi != NULL && !running_now) {
+			// Run ESI in running
+			running_now = 1;
+			print_and_log_trace(logger, "[ESI_WILL_EXECUTE][%d]", running_esi->esi_id);
+			running_esi->job_counter++;
+			running_esi->estimation--;
+			running_esi->waiting_counter = 0;
+			// Prepare ratio for HRRN
+			if(settings.planning_alg == HRRN){
+				ready_queue = map_list_for_hrrn();
+				for(int i = 0; i < ready_queue->elements_count; i++){
+					ESIRegistration * esi = list_get(ready_queue, i);
+					print_and_log_trace(logger, "[ESI_%d][S][%f][W][%d][RR][%f]",
+								esi->esi_id, esi->estimation, esi->waiting_counter, esi->response_ratio);
 				}
 			}
-			sleep(1);
+			print_and_log_trace(logger, "[ESI_%d][REMAINDER][%f][LAST_ESTIMATION][%f]",
+						running_esi->esi_id, running_esi->estimation, running_esi->last_estimation);
+			if(running_esi->rerun_last_instruction) {
+				send_message_type(running_esi->socket, EXECUTE_PREV_INSTRUCTION);
+			} else {
+				send_message_type(running_esi->socket, EXECUTE_NEXT_INSTRUCTION);
+			}
 		}
+		sleep(1);
+		pthread_mutex_unlock(&mutex_pausa);
 	}
 }
 
@@ -749,4 +756,8 @@ StatusData * get_status(char * key){
 
 	sd->waiting_esis = search_esis_waiting_for(key);
 	return sd;
+}
+
+pthread_mutex_t get_mutex_pausa(){
+	return mutex_pausa;
 }

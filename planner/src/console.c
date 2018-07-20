@@ -1,18 +1,19 @@
 #include "console.h"
 
 ResourceAllocation * find_allocation_node(int esi_id, int type);
-
-int RUNNING_FLAG = 1;
+pthread_mutex_t mutex_pausa;
 
 /*Commands*/
 void pause(){
-	RUNNING_FLAG = 0;
+	pthread_mutex_lock(&mutex_pausa);
 	printf("Planificación pausada\n");
 }
+
 void resume(){
-	RUNNING_FLAG = 1;
+	pthread_mutex_unlock(&mutex_pausa);
 	printf("Planificación reanudada\n");
 }
+
 void block(char* key, int id){ //Issue #1105 TODO No se entiende la diferencia entre ambos casos
 	if(is_key_free(key)) {
 		ESIRegistration * esi = search_esi(id);
@@ -156,11 +157,7 @@ void info(){
 
 /*Console*/
 
-int get_running_flag() {
-	return RUNNING_FLAG;
-}
-
-void * planner_console_launcher() {
+void * planner_console_launcher(pthread_mutex_t * mutex) {
 	char *linea, *param1, *param2;
 	int command_number, quit = 0;
 	const char* command_list[] = {"salir", "pausar", "reanudar",
@@ -168,7 +165,7 @@ void * planner_console_launcher() {
 			"status", "deadlock", "info"};
 	int command_list_length = (int) sizeof(command_list) /
 			sizeof(command_list[0]);
-
+	mutex_pausa = *mutex;
 	printf("Bienvenido/a a la consola del planificador\n");
 	printf("Escribi 'info' para obtener una lista de comandos\n");
 

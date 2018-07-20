@@ -1,0 +1,10 @@
+GET test:prueba1
+SET test:prueba1 algo1
+STORE test:prueba1
+GET test:prueba2
+SET test:prueba2 algo2
+GET test:prueba3
+GET test:prueba4
+GET test:prueba5
+GET test:prueba6
+GET test:prueba7

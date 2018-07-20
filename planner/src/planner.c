@@ -381,8 +381,9 @@ void * running_thread(int a) {
 				send_message_type(running_esi->socket, EXECUTE_NEXT_INSTRUCTION);
 			}
 		}
-		sleep(1);
+		
 		pthread_mutex_unlock(&mutex_pausa);
+		sleep(1);
 	}
 }
 

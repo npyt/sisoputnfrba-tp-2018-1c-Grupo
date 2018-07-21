@@ -641,7 +641,7 @@ float ratio(ESIRegistration * esi){
 
 void sort_by_ratio() {
     int _sort_ratio_esi(ESIRegistration *one, ESIRegistration *two) {
-        return (one->response_ratio>two->response_ratio);
+        return (one->response_ratio>=two->response_ratio);
     }
     list_sort(ready_queue, (void*)_sort_ratio_esi);
 }
